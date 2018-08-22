@@ -15,3 +15,4 @@ deploy:
   kubectl:
     manifests:
       - k8s/storage.yaml
+      - k8s/storage-service.yaml
