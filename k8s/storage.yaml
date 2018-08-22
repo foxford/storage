@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: storage
+  labels:
+    app: storage
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: storage
+  template:
+    metadata:
+      labels:
+        app: storage
+    spec:
+      containers:
+        - name: storage
+          image: netologygroup/storage
+          ports:
+            - containerPort: 8080
+          env:
+            - name: "AWS_ACCESS_KEY_ID"
+              valueFrom:
+                secretKeyRef:
+                  name: integros-storage-credentials
+                  key: key
+            - name: "AWS_SECRET_ACCESS_KEY"
+              valueFrom:
+                secretKeyRef:
+                  name: integros-storage-credentials
+                  key: secret
+            - name: "AWS_ENDPOINT"
+              valueFrom:
+                secretKeyRef:
+                  name: integros-storage-credentials
+                  key: endpoint
+            - name: "AWS_REGION"
+              valueFrom:
+                secretKeyRef:
+                  name: integros-storage-credentials
+                  key: region
+            - name: "RUST_LOG"
+              valueFrom:
+                configMapKeyRef:
+                  name: storage-environment
+                  key: RUST_LOG
+          resources:
+            requests:
+              cpu: 100m
+              memory: 200Mi
+            limits:
+              cpu: 500m
+              memory: 1Gi
