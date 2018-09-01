@@ -1,5 +1,6 @@
 use http;
 use tool;
+use tower_web::middleware::cors::{AllowedOrigins, CorsBuilder};
 use tower_web::ServiceBuilder;
 
 type S3ClientRef = ::std::sync::Arc<tool::s3::Client>;
@@ -48,6 +49,26 @@ fn redirect(uri: &str) -> Result<http::Response<&'static str>, ()> {
 }
 
 pub(crate) fn run(s3: tool::s3::Client) {
+    use http::{header, Method};
+    use std::collections::HashSet;
+
+    let allow_headers: HashSet<header::HeaderName> = [
+        header::CACHE_CONTROL,
+        header::IF_MATCH,
+        header::IF_MODIFIED_SINCE,
+        header::IF_NONE_MATCH,
+        header::IF_UNMODIFIED_SINCE,
+        header::RANGE,
+    ].iter()
+        .cloned()
+        .collect();
+
+    let cors = CorsBuilder::new()
+        .allow_origins(AllowedOrigins::Any { allow_null: true })
+        .allow_methods(vec![Method::GET])
+        .allow_headers(allow_headers)
+        .build();
+
     let addr = "0.0.0.0:8080".parse().expect("Invalid address");
     info!("Listening on http://{}", addr);
 
@@ -55,6 +76,7 @@ pub(crate) fn run(s3: tool::s3::Client) {
     ServiceBuilder::new()
         .resource(Object { s3: s3.clone() })
         .resource(Set { s3: s3.clone() })
+        .middleware(cors)
         .run(&addr)
         .unwrap();
 }
