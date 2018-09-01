@@ -1,15 +1,16 @@
 extern crate env_logger;
-extern crate log;
 #[macro_use]
-extern crate warp;
+extern crate log;
 extern crate rusoto_core;
 extern crate rusoto_s3;
+#[macro_use]
+extern crate tower_web;
+extern crate http;
 
 use std::env;
-use warp::Filter;
 
-pub mod http;
-pub mod tool;
+mod app;
+mod tool;
 
 fn main() {
     env_logger::init();
@@ -19,17 +20,13 @@ fn main() {
     let endpoint = env::var("AWS_ENDPOINT").unwrap();
     let region = env::var("AWS_REGION").unwrap();
 
-    let state = http::StateRef::new(http::State {
-        s3: tool::s3::Options::new(
-            &key,
-            &secret,
-            &region,
-            &endpoint,
-            ::std::time::Duration::from_secs(300),
-        ),
-    });
-    let route = path!("api" / "v1")
-        .and(http::object::route(state.clone()).or(http::set::route(state.clone())));
+    let s3 = tool::s3::Client::new(
+        &key,
+        &secret,
+        &region,
+        &endpoint,
+        ::std::time::Duration::from_secs(300),
+    );
 
-    warp::serve(route).run(([0, 0, 0, 0], 8080));
+    app::run(s3);
 }
