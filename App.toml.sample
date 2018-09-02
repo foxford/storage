@@ -1,0 +1,3 @@
+[cors]
+allow_origins = "*"
+max_age = 86400

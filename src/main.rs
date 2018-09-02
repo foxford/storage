@@ -1,8 +1,10 @@
+extern crate config;
 extern crate env_logger;
 #[macro_use]
 extern crate log;
 extern crate rusoto_core;
 extern crate rusoto_s3;
+extern crate serde;
 #[macro_use]
 extern crate tower_web;
 extern crate http;
