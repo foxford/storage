@@ -1,6 +1,8 @@
+pub(crate) mod config;
+
 use http;
 use tool;
-use tower_web::middleware::cors::{AllowedOrigins, CorsBuilder};
+use tower_web::middleware::cors::CorsBuilder;
 use tower_web::ServiceBuilder;
 
 type S3ClientRef = ::std::sync::Arc<tool::s3::Client>;
@@ -52,6 +54,9 @@ pub(crate) fn run(s3: tool::s3::Client) {
     use http::{header, Method};
     use std::collections::HashSet;
 
+    let config = config::load().expect("Failed to load config");
+    info!("App config: {:?}", config);
+
     let allow_headers: HashSet<header::HeaderName> = [
         header::CACHE_CONTROL,
         header::IF_MATCH,
@@ -64,9 +69,10 @@ pub(crate) fn run(s3: tool::s3::Client) {
         .collect();
 
     let cors = CorsBuilder::new()
-        .allow_origins(AllowedOrigins::Any { allow_null: true })
+        .allow_origins(config.cors.allow_origins)
         .allow_methods(vec![Method::GET])
         .allow_headers(allow_headers)
+        .max_age(config.cors.max_age)
         .build();
 
     let addr = "0.0.0.0:8080".parse().expect("Invalid address");

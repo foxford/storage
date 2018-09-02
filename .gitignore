@@ -13,4 +13,5 @@ Session.vim
 /target/
 
 # Project
+App.toml
 /docs/book/
