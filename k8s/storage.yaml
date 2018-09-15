@@ -45,6 +45,13 @@ spec:
                 configMapKeyRef:
                   name: storage-environment
                   key: RUST_LOG
+          volumeMounts:
+            - name: config
+              mountPath: /app/App.toml
+              subPath: App.toml
+            - name: foxford
+              mountPath: /app/data/keys/foxford.20180915.iam.key.binary
+              subPath: iam.key
           resources:
             requests:
               cpu: 100m
@@ -52,3 +59,10 @@ spec:
             limits:
               cpu: 500m
               memory: 1Gi
+      volumes:
+        - name: config
+          configMap:
+            name: storage-config
+        - name: foxford
+          secret:
+            secretName: foxford-20180915-credentials

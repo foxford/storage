@@ -13,4 +13,6 @@ RUN cargo build --release
 FROM alpine
 
 COPY --from=build-stage "/build/target/x86_64-unknown-linux-musl/release/storage" "/app/storage"
+
+WORKDIR "/app"
 ENTRYPOINT ["/app/storage"]
