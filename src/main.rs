@@ -1,5 +1,6 @@
 extern crate config;
 extern crate env_logger;
+extern crate jsonwebtoken as jose;
 #[macro_use]
 extern crate log;
 extern crate rusoto_core;
