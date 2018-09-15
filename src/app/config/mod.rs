@@ -1,8 +1,19 @@
 use config;
+use jose::Algorithm;
+use std::collections::HashMap;
 use std::time::Duration;
 use tower_web::middleware::cors::AllowedOrigins;
 
 mod parse;
+
+#[derive(Debug, Deserialize)]
+pub struct Authn {
+    pub audience: String,
+    #[serde(deserialize_with = "parse::algorithm")]
+    pub algorithm: Algorithm,
+    #[serde(deserialize_with = "parse::file")]
+    pub key: Vec<u8>,
+}
 
 #[derive(Debug, Deserialize)]
 pub struct Cors {
@@ -14,8 +25,11 @@ pub struct Cors {
     pub max_age: Duration,
 }
 
+pub type AuthnMap = HashMap<String, Authn>;
+
 #[derive(Debug, Deserialize)]
 pub struct Config {
+    pub authn: AuthnMap,
     pub cors: Cors,
 }
 

@@ -1,3 +1,8 @@
+[authn."iam.example.org"]
+audience = "example.org"
+algorithm = "HS256"
+key = "data/keys/iam.key.binary"
+
 [cors]
 allow_origins = "*"
 max_age = 86400

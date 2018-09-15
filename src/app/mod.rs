@@ -1,4 +1,5 @@
-pub(crate) mod config;
+mod authn;
+mod config;
 
 use http;
 use tool;
@@ -21,15 +22,14 @@ impl_web! {
 
     impl Object {
         #[get("/api/v1/buckets/:bucket/objects/:key")]
-        fn read(&self, bucket: String, key: String) -> Result<http::Response<&'static str>, ()> {
+        fn read(&self, bucket: String, key: String/*, _sub: Option<authn::Subject>*/) -> Result<http::Response<&'static str>, ()> {
             redirect(&self.s3.presigned_url("GET", &bucket, &key))
         }
     }
 
     impl Set {
         #[get("/api/v1/buckets/:bucket/sets/:set/objects/:key")]
-        #[content_type("json")]
-        fn read(&self, bucket: String, set: String, key: String) -> Result<http::Response<&'static str>, ()> {
+        fn read(&self, bucket: String, set: String, key: String/*, _sub: Option<authn::Subject>*/) -> Result<http::Response<&'static str>, ()> {
             redirect(&self.s3.presigned_url("GET", &bucket, &Self::s3_key(&set, &key)))
         }
 
@@ -64,7 +64,8 @@ pub(crate) fn run(s3: tool::s3::Client) {
         header::IF_NONE_MATCH,
         header::IF_UNMODIFIED_SINCE,
         header::RANGE,
-    ].iter()
+    ]
+        .iter()
         .cloned()
         .collect();
 
@@ -80,6 +81,7 @@ pub(crate) fn run(s3: tool::s3::Client) {
 
     let s3 = S3ClientRef::new(s3);
     ServiceBuilder::new()
+        .config(config.authn)
         .resource(Object { s3: s3.clone() })
         .resource(Set { s3: s3.clone() })
         .middleware(cors)
