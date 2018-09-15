@@ -21,20 +21,20 @@ struct Set {
 impl_web! {
 
     impl Object {
-        #[get("/api/v1/buckets/:bucket/objects/:key")]
-        fn read(&self, bucket: String, key: String/*, _sub: Option<authn::Subject>*/) -> Result<http::Response<&'static str>, ()> {
-            redirect(&self.s3.presigned_url("GET", &bucket, &key))
+        #[get("/api/v1/buckets/:bucket/objects/:object")]
+        fn read(&self, bucket: String, object: String/*, _sub: Option<authn::Subject>*/) -> Result<http::Response<&'static str>, ()> {
+            redirect(&self.s3.presigned_url("GET", &bucket, &object))
         }
     }
 
     impl Set {
-        #[get("/api/v1/buckets/:bucket/sets/:set/objects/:key")]
-        fn read(&self, bucket: String, set: String, key: String/*, _sub: Option<authn::Subject>*/) -> Result<http::Response<&'static str>, ()> {
-            redirect(&self.s3.presigned_url("GET", &bucket, &Self::s3_key(&set, &key)))
+        #[get("/api/v1/buckets/:bucket/sets/:set/objects/:object")]
+        fn read(&self, bucket: String, set: String, object: String/*, _sub: Option<authn::Subject>*/) -> Result<http::Response<&'static str>, ()> {
+            redirect(&self.s3.presigned_url("GET", &bucket, &Self::s3_object(&set, &object)))
         }
 
-        fn s3_key(set: &str, key: &str) -> String {
-            format!("{set}.{key}", set = set, key = key)
+        fn s3_object(set: &str, object: &str) -> String {
+            format!("{set}.{object}", set = set, object = object)
         }
     }
 

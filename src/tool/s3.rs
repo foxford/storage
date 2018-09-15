@@ -31,8 +31,8 @@ impl Client {
         }
     }
 
-    pub(crate) fn presigned_url(self: &Client, method: &str, bucket: &str, key: &str) -> String {
-        let uri = format!("/{bucket}/{key}", bucket = bucket, key = key);
+    pub(crate) fn presigned_url(self: &Client, method: &str, bucket: &str, object: &str) -> String {
+        let uri = format!("/{bucket}/{object}", bucket = bucket, object = object);
         let mut req = SignedRequest::new(method, "s3", &self.region, &uri);
         req.generate_presigned_url(&self.credentials, &self.expires_in)
     }
