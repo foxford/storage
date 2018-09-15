@@ -1,7 +1,7 @@
 [authn."iam.example.org"]
 audience = "example.org"
 algorithm = "HS256"
-key = "data/keys/iam.key.binary"
+key = "data/keys/example.iam.key.binary"
 
 [cors]
 allow_origins = "*"
