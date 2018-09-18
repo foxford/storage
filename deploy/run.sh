@@ -30,6 +30,11 @@ curl -fsSL \
     --header "accept: application/vnd.github.v3.raw" \
     "https://api.github.com/repos/netology-group/environment/contents/cluster/k8s/apps/storage/ns/${NAMESPACE}/storage-config.yaml" \
     | kubectl apply -f -
+curl -fsSL \
+    --header "authorization: token ${GITHUB_TOKEN}" \
+    --header "accept: application/vnd.github.v3.raw" \
+    "https://api.github.com/repos/netology-group/environment/contents/cluster/k8s/apps/storage/ns/${NAMESPACE}/storage-ingress.yaml" \
+    | kubectl apply -f -
 
 echo ${DOCKER_PASSWORD} | docker login -u ${DOCKER_USERNAME} --password-stdin
 
