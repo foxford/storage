@@ -2,7 +2,11 @@ language: rust
 rust:
   - stable
   - nightly
-cache: cargo
+cache:
+  directories:
+    - /home/travis/.cargo
+before_cache:
+  - rm -rf /home/travis/.cargo/registry
 services: docker
 git:
   depth: 1
