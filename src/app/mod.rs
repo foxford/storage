@@ -3,8 +3,6 @@ mod config;
 
 use http;
 use tool;
-use tower_web::middleware::cors::CorsBuilder;
-use tower_web::ServiceBuilder;
 
 type S3ClientRef = ::std::sync::Arc<tool::s3::Client>;
 
@@ -53,6 +51,9 @@ fn redirect(uri: &str) -> Result<http::Response<&'static str>, ()> {
 pub(crate) fn run(s3: tool::s3::Client) {
     use http::{header, Method};
     use std::collections::HashSet;
+    use tower_web::middleware::cors::CorsBuilder;
+    use tower_web::middleware::log::LogMiddleware;
+    use tower_web::ServiceBuilder;
 
     let config = config::load().expect("Failed to load config");
     info!("App config: {:?}", config);
@@ -84,6 +85,7 @@ pub(crate) fn run(s3: tool::s3::Client) {
         .config(config.authn)
         .resource(Object { s3: s3.clone() })
         .resource(Set { s3: s3.clone() })
+        .middleware(LogMiddleware::new("storage::web"))
         .middleware(cors)
         .run(&addr)
         .unwrap();
