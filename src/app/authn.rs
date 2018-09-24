@@ -6,6 +6,7 @@ use tower_web::util::BufStream;
 #[derive(Debug)]
 pub(crate) struct Subject {
     pub(crate) id: String,
+    pub(crate) audience: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -48,6 +49,7 @@ fn parse_access_token(header: &HeaderValue, authn: &AuthnMap) -> Result<Subject,
 
     let sub = Subject {
         id: data.claims.sub,
+        audience: data.claims.aud,
     };
     Ok(sub)
 }

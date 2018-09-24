@@ -8,6 +8,7 @@ extern crate rusoto_s3;
 extern crate serde;
 #[macro_use]
 extern crate tower_web;
+extern crate failure;
 extern crate http;
 
 use std::env;

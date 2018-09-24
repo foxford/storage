@@ -3,6 +3,9 @@ audience = "example.org"
 algorithm = "HS256"
 key = "data/keys/example.iam.key.binary"
 
+[authz."example.org"]
+uri = "https://iam.example.org/authz"
+
 [cors]
 allow_origins = "*"
 max_age = 86400
