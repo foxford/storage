@@ -16,6 +16,11 @@ pub struct Authn {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct Authz {
+    pub uri: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct Cors {
     #[serde(deserialize_with = "parse::allowed_origins")]
     #[serde(default)]
@@ -26,10 +31,12 @@ pub struct Cors {
 }
 
 pub type AuthnMap = HashMap<String, Authn>;
+pub type AuthzMap = HashMap<String, Authz>;
 
 #[derive(Debug, Deserialize)]
 pub struct Config {
     pub authn: AuthnMap,
+    pub authz: AuthzMap,
     pub cors: Cors,
 }
 
