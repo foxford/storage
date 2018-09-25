@@ -21,6 +21,11 @@ pub struct Authz {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct Namespaces {
+    pub app: String,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct Cors {
     #[serde(deserialize_with = "parse::allowed_origins")]
     #[serde(default)]
@@ -37,6 +42,7 @@ pub type AuthzMap = HashMap<String, Authz>;
 pub struct Config {
     pub authn: AuthnMap,
     pub authz: AuthzMap,
+    pub namespaces: Namespaces,
     pub cors: Cors,
 }
 

@@ -22,6 +22,7 @@ struct Set {
 #[derive(Debug)]
 struct Sign {
     authz: config::AuthzMap,
+    ns: config::Namespaces,
     s3: S3ClientRef,
 }
 
@@ -61,24 +62,25 @@ impl_web! {
     impl Sign {
         #[post("/api/v1/sign")]
         #[content_type("json")]
-        fn read(&self, body: SignPayload, sub: Option<authn::Subject>) -> Result<SignResponse, ()> {
+        fn read(&self, body: SignPayload, subject: Option<authn::Subject>) -> Result<SignResponse, ()> {
             // TODO: return 403 – anonymous access forbidden
-            let sub = sub.ok_or(())?;
+            let subject = subject.ok_or(())?;
 
+            let authz_subject = authz::Entity::new(&subject.audience, vec!["accounts", &subject.id]);
             let (s3_object, authz_object) = match body.set {
                 Some(ref set) => (
                     s3_object(&set, &body.object),
-                    vec!["buckets", &body.bucket, "sets", set, "objects", &body.object],
+                    authz::Entity::new(&self.ns.app, vec!["buckets", &body.bucket, "sets", set, "objects", &body.object]),
                 ),
                 None => (
                     body.object.to_owned(),
-                    vec!["buckets", &body.bucket, "objects", &body.object],
+                    authz::Entity::new(&self.ns.app, vec!["buckets", &body.bucket, "objects", &body.object]),
                 )
             };
 
             // TODO: return 403 - access forbidden
-            let config = self.authz.get(&sub.audience).ok_or(())?;
-            (authz::client(config)).authorize(&sub, &authz_object, &body.method)?;
+            let authz = self.authz.get(&subject.audience).ok_or(())?;
+            (authz::client(authz)).authorize(&authz_subject, &authz_object, &body.method).map_err(|_| ())?;
 
             // TODO: return a meaningful error
             let mut builder = util::S3SignedRequestBuilder::new()
@@ -150,6 +152,7 @@ pub(crate) fn run(s3: tool::s3::Client) {
     let set = Set { s3: s3.clone() };
     let sign = Sign {
         authz: config.authz,
+        ns: config.namespaces,
         s3: s3.clone(),
     };
 
