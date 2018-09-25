@@ -1,24 +1,24 @@
 # Authorization
 
-In order to authorize an **action** performed by a **subject** to an **object**, the application sends a `POST` request to the `AUTHZ_ENDPOINT`.
+In order to authorize an **action** performed by a **subject** to an **object**, the application sends a `POST` request to the authorization endpoint.
+
+**Example**
 
 ```json
 {
     "subject": {
-        "namespace": SUBJECT_NAMESPACE,
-        "value": SUBJECT
+        "namespace": "iam.example.org",
+        "value": ["accounts", "123e4567-e89b-12d3-a456-426655440000"]
     },
     "object": {
-        "namespace": OBJECT_NAMESPACE,
-        "value": OBJECT
+        "namespace": "storage.example.org",
+        "value": ["buckets", "foo", "sets", "bar"]
     },
-    "action": ACTION
+    "action": "read"
 }
 ```
 
-Where
-- `SUBJECT_NAMESPACE` and `SUBJECT` are retrieved from `aud` and `sub` claims of an **access token** respectively. If the access token is not presented in the request, `{"namespace": SUBJECT_NAMESPACE, "value": ["accounts", "anonymous"]}` is used.
-- `AUTHZ_ENDPOINT`, `SUBJECT_NAMESPACE` and `OBJECT_NAMESPACE` are specified in the application config file under `authz` key.
+Subject's namespace and account identifier are retrieved from `aud` and `sub` claims of an **access token** respectively. If an access token is not presented in a request, the account identifier will be replaced with `"anonymous"` keyword. URI of authorization endpoint, object and anonymous namespaces are configured through the application configuration file.
 
 Possible values for `SUBJECT`:
 - `["accounts", ACCOUNT_ID]`
