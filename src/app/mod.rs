@@ -3,6 +3,7 @@ mod authz;
 mod config;
 mod util;
 
+use failure::{err_msg, Error};
 use http;
 use std::collections::BTreeMap;
 use tool;
@@ -22,6 +23,7 @@ struct Set {
 #[derive(Debug)]
 struct Sign {
     authz: config::AuthzMap,
+    ns: config::Namespaces,
     s3: S3ClientRef,
 }
 
@@ -61,26 +63,33 @@ impl_web! {
     impl Sign {
         #[post("/api/v1/sign")]
         #[content_type("json")]
-        fn read(&self, body: SignPayload, sub: Option<authn::Subject>) -> Result<SignResponse, ()> {
-            // TODO: return 403 – anonymous access forbidden
-            let sub = sub.ok_or(())?;
-
+        fn read(&self, body: SignPayload, subject: Option<authn::Subject>) -> Result<SignResponse, ()> {
+            let authz_action = action(&body.method).map_err(|_| ())?;
             let (s3_object, authz_object) = match body.set {
                 Some(ref set) => (
                     s3_object(&set, &body.object),
-                    vec!["buckets", &body.bucket, "sets", set, "objects", &body.object],
+                    authz::Entity::new(&self.ns.app, vec!["buckets", &body.bucket, "sets", set, "objects", &body.object]),
                 ),
                 None => (
                     body.object.to_owned(),
-                    vec!["buckets", &body.bucket, "objects", &body.object],
+                    authz::Entity::new(&self.ns.app, vec!["buckets", &body.bucket, "objects", &body.object]),
                 )
             };
 
-            // TODO: return 403 - access forbidden
-            let config = self.authz.get(&sub.audience).ok_or(())?;
-            (authz::client(config)).authorize(&sub, &authz_object, &body.method)?;
+            // NOTE: authorize only "update" and "delete" actions
+            match authz_action {
+                "update" | "delete" => {
+                    // TODO: return 403 – anonymous access forbidden
+                    let subject = subject.ok_or(())?;
+                    let authz_subject = authz::Entity::new(&subject.audience, vec!["accounts", &subject.id]);
 
-            // TODO: return a meaningful error
+                    // TODO: return 403 - access forbidden
+                    let authz = self.authz.get(&subject.audience).ok_or(())?;
+                    (authz::client(authz)).authorize(&authz_subject, &authz_object, authz_action).map_err(|_| ())?;
+                }
+                _ => ()
+            };
+
             let mut builder = util::S3SignedRequestBuilder::new()
                 .method(&body.method)
                 .bucket(&body.bucket)
@@ -94,6 +103,15 @@ impl_web! {
         }
     }
 
+}
+
+fn action(method: &str) -> Result<&str, Error> {
+    match method {
+        "GET" => Ok("read"),
+        "PUT" => Ok("update"),
+        "DELETE" => Ok("delete"),
+        _ => Err(err_msg("bad method")),
+    }
 }
 
 fn s3_object(set: &str, object: &str) -> String {
@@ -150,6 +168,7 @@ pub(crate) fn run(s3: tool::s3::Client) {
     let set = Set { s3: s3.clone() };
     let sign = Sign {
         authz: config.authz,
+        ns: config.namespaces,
         s3: s3.clone(),
     };
 

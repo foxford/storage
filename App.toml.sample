@@ -6,6 +6,9 @@ key = "data/keys/example.iam.key.binary"
 [authz."example.org"]
 uri = "https://iam.example.org/authz"
 
+[namespaces]
+app = "storage.example.org"
+
 [cors]
 allow_origins = "*"
 max_age = 86400

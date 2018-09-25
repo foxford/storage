@@ -3,6 +3,7 @@ extern crate env_logger;
 extern crate jsonwebtoken as jose;
 #[macro_use]
 extern crate log;
+extern crate reqwest;
 extern crate rusoto_core;
 extern crate rusoto_s3;
 extern crate serde;
