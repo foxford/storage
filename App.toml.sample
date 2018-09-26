@@ -6,6 +6,7 @@ key = "data/keys/example.iam.key.binary"
 [authz."example.org"]
 uri = "https://iam.example.org/authz"
 token = "secret"
+type = "http"
 
 [namespaces]
 app = "storage.example.org"
