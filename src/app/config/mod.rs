@@ -18,6 +18,7 @@ pub struct Authn {
 #[derive(Debug, Deserialize)]
 pub struct Authz {
     pub uri: Option<String>,
+    pub token: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]

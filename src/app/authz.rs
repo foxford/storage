@@ -44,12 +44,14 @@ impl Authorization for Trusted {
 #[derive(Debug)]
 pub(crate) struct HttpClient {
     pub(crate) uri: String,
+    pub(crate) token: String,
 }
 
 impl HttpClient {
-    pub(crate) fn new(uri: &str) -> Self {
+    pub(crate) fn new(uri: &str, token: &str) -> Self {
         Self {
             uri: uri.to_string(),
+            token: token.to_string(),
         }
     }
 }
@@ -64,7 +66,12 @@ impl Authorization for HttpClient {
             action,
         };
         let client = reqwest::Client::new();
-        let resp: Vec<String> = client.post(&self.uri).json(&req).send()?.json()?;
+        let resp: Vec<String> = client
+            .post(&self.uri)
+            .bearer_auth(&self.token)
+            .json(&req)
+            .send()?
+            .json()?;
 
         if !resp.contains(&action.to_string()) {
             return Err(err_msg("access is forbidden"));
@@ -75,8 +82,8 @@ impl Authorization for HttpClient {
 }
 
 pub(crate) fn client(config: &Authz) -> Box<Authorization> {
-    match config.uri {
-        Some(ref val) => Box::new(HttpClient::new(val)),
-        None => Box::new(Trusted::new()),
+    match (&config.uri, &config.token) {
+        (Some(ref uri), Some(ref token)) => Box::new(HttpClient::new(uri, token)),
+        _ => Box::new(Trusted::new()),
     }
 }
