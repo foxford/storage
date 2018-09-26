@@ -85,7 +85,7 @@ impl_web! {
 
                     // TODO: return 403 - access forbidden
                     let authz = self.authz.get(&subject.audience).ok_or(())?;
-                    (authz::client(authz)).authorize(&authz_subject, &authz_object, authz_action).map_err(|_| ())?;
+                    (config::Authz::client(authz)).authorize(&authz_subject, &authz_object, authz_action).map_err(|_| ())?;
                 }
                 _ => ()
             };

@@ -1,4 +1,3 @@
-use app::config::Authz;
 use failure::{err_msg, Error};
 
 #[derive(Debug, Serialize)]
@@ -26,34 +25,19 @@ pub(crate) trait Authorization {
     fn authorize(&self, subject: &Entity, object: &Entity, action: Action) -> Result<(), Error>;
 }
 
-#[derive(Debug)]
-pub(crate) struct Trusted {}
+#[derive(Debug, Serialize, Deserialize)]
+pub(crate) struct TrustedClient {}
 
-impl Trusted {
-    pub(crate) fn new() -> Self {
-        Self {}
-    }
-}
-
-impl Authorization for Trusted {
-    fn authorize(&self, _subect: &Entity, _object: &Entity, _action: Action) -> Result<(), Error> {
+impl Authorization for TrustedClient {
+    fn authorize(&self, _subject: &Entity, _object: &Entity, _action: Action) -> Result<(), Error> {
         Ok(())
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct HttpClient {
     pub(crate) uri: String,
     pub(crate) token: String,
-}
-
-impl HttpClient {
-    pub(crate) fn new(uri: &str, token: &str) -> Self {
-        Self {
-            uri: uri.to_string(),
-            token: token.to_string(),
-        }
-    }
 }
 
 impl Authorization for HttpClient {
@@ -78,12 +62,5 @@ impl Authorization for HttpClient {
         }
 
         Ok(())
-    }
-}
-
-pub(crate) fn client(config: &Authz) -> Box<Authorization> {
-    match (&config.uri, &config.token) {
-        (Some(ref uri), Some(ref token)) => Box::new(HttpClient::new(uri, token)),
-        _ => Box::new(Trusted::new()),
     }
 }
