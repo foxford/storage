@@ -1,7 +1,6 @@
 language: rust
 rust:
   - stable
-  - nightly
 cache:
   directories:
     - /home/travis/.cargo
@@ -14,25 +13,18 @@ script:
   - cargo test
 jobs:
   fast_finish: true
-  allow_failures:
-    - rust: nightly
   include:
     - stage: compile
       before_script: skip
       script: cargo build
-      env:
     - stage: test
       name: "Rustfmt"
-      rust: stable
       before_script: rustup component add rustfmt-preview
       script: cargo fmt -- --check
-      env:
     - stage: test
       name: "Clippy"
-      rust: nightly
       before_script: rustup component add clippy-preview
       script: cargo clippy
-      env:
     - stage: deploy
       before_script: skip
       install: skip
