@@ -141,7 +141,10 @@ pub(crate) fn run(s3: tool::s3::Client) {
 
     // Middleware
     let allow_headers: HashSet<header::HeaderName> = [
+        header::AUTHORIZATION,
         header::CACHE_CONTROL,
+        header::CONTENT_LENGTH,
+        header::CONTENT_TYPE,
         header::IF_MATCH,
         header::IF_MODIFIED_SINCE,
         header::IF_NONE_MATCH,
@@ -154,8 +157,9 @@ pub(crate) fn run(s3: tool::s3::Client) {
 
     let cors = CorsBuilder::new()
         .allow_origins(config.cors.allow_origins)
-        .allow_methods(vec![Method::GET])
+        .allow_methods(vec![Method::GET, Method::POST])
         .allow_headers(allow_headers)
+        .allow_credentials(true)
         .max_age(config.cors.max_age)
         .build();
 
