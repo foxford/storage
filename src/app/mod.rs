@@ -68,7 +68,7 @@ impl_web! {
             let (s3_object, authz_object) = match body.set {
                 Some(ref set) => (
                     s3_object(&set, &body.object),
-                    authz::Entity::new(&self.ns.app, vec!["buckets", &body.bucket, "sets", set, "objects", &body.object]),
+                    authz::Entity::new(&self.ns.app, vec!["buckets", &body.bucket, "sets", set]),
                 ),
                 None => (
                     body.object.to_owned(),
