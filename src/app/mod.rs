@@ -64,7 +64,7 @@ impl_web! {
         #[post("/api/v1/sign")]
         #[content_type("json")]
         fn read(&self, body: SignPayload, subject: Option<authn::Subject>) -> Result<SignResponse, ()> {
-            let authz_action = action(&body.method).map_err(|_| ())?;
+            let authz_action = action(&body.method).map_err(|err| info!("{}", err))?;
             let (s3_object, authz_object) = match body.set {
                 Some(ref set) => (
                     s3_object(&set, &body.object),
@@ -85,7 +85,7 @@ impl_web! {
 
                     // TODO: return 403 - access forbidden
                     let authz = self.authz.get(&subject.audience).ok_or(())?;
-                    (config::Authz::client(authz)).authorize(&authz_subject, &authz_object, authz_action).map_err(|_| ())?;
+                    (config::Authz::client(authz)).authorize(&authz_subject, &authz_object, authz_action).map_err(|err| info!("{}", err))?;
                 }
                 _ => ()
             };
@@ -97,7 +97,7 @@ impl_web! {
             for (key, val) in body.headers {
                 builder = builder.add_header(&key, &val);
             }
-            let uri = builder.build(&self.s3).map_err(|_| ())?;
+            let uri = builder.build(&self.s3).map_err(|err| info!("{}", err))?;
 
             Ok(SignResponse { uri })
         }

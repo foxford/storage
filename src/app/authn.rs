@@ -39,7 +39,7 @@ fn parse_access_token(header: &HeaderValue, authn: &AuthnMap) -> Result<Subject,
 
     let config = authn
         .get(&dirty.claims.iss)
-        .ok_or_else(|| Error::invalid_argument(&"issuer is not match"))?;
+        .ok_or_else(|| Error::invalid_argument(&"issuer of an access token is not allowed"))?;
 
     let mut validation = Validation::new(config.algorithm);
     validation.set_audience(&config.audience);

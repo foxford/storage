@@ -58,7 +58,10 @@ impl Authorization for HttpClient {
             .json()?;
 
         if !resp.contains(&action.to_string()) {
-            return Err(err_msg("access is forbidden"));
+            return Err(err_msg(format!(
+                "{:?} access to {:?} is forbidden for {:?}",
+                action, object, subject
+            )));
         }
 
         Ok(())
