@@ -107,6 +107,7 @@ impl_web! {
 
 fn action(method: &str) -> Result<&str, Error> {
     match method {
+        "HEAD" => Ok("read"),
         "GET" => Ok("read"),
         "PUT" => Ok("update"),
         "DELETE" => Ok("delete"),
