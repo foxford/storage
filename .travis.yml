@@ -1,6 +1,10 @@
 language: rust
 rust:
   - stable
+addons:
+  apt:
+    packages:
+      - lftp
 cache:
   directories:
     - /home/travis/.cargo
