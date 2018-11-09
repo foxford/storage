@@ -29,6 +29,11 @@ jobs:
       before_script: skip
       install: skip
       script: ./deploy/run.sh
+    - stage: generate_doc
+      name: "Generate doc"
+      script: make doc
+      before_script: 
+        - (cargo install mdbook --vers 0.2.1 --force || true)
 stages:
   - name: compile
   - name: test
