@@ -68,7 +68,7 @@ impl Authorization for HttpClient {
             .map_err(|err| err_msg(format!("bad JSON in the Authz response – {}", err)))?;
 
         if !resp.contains(&req.action()) {
-            return Err(err_msg(format!("access is forbidden")));
+            return Err(err_msg("access is forbidden"));
         }
 
         Ok(())

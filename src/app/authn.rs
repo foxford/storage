@@ -21,7 +21,7 @@ fn parse_bearer_token(header: &HeaderValue) -> Result<&str, Error> {
     let val: Vec<&str> = header
         .to_str()
         .map_err(|err| Error::invalid_argument(&err))?
-        .split(" ")
+        .split(' ')
         .collect();
 
     match val[..] {

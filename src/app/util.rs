@@ -54,9 +54,9 @@ impl S3SignedRequestBuilder {
 
     pub(crate) fn build(self, client: &Client) -> Result<String, Error> {
         let mut req = client.create_request(
-            &self.method.ok_or(err_msg("method is required"))?,
-            &self.bucket.ok_or(err_msg("bucket is required"))?,
-            &self.object.ok_or(err_msg("object is required"))?,
+            &self.method.ok_or_else(|| err_msg("method is required"))?,
+            &self.bucket.ok_or_else(|| err_msg("bucket is required"))?,
+            &self.object.ok_or_else(|| err_msg("object is required"))?,
         );
         for (key, val) in self.headers {
             req.add_header(&key, &val);
