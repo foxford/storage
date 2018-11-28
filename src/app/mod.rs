@@ -64,7 +64,8 @@ impl_web! {
         #[post("/api/v1/sign")]
         #[content_type("json")]
         fn read(&self, body: SignPayload, subject: Option<authn::Subject>) -> Result<SignResponse, ()> {
-            let authz_action = action(&body.method).map_err(|err| info!("{}", err))?;
+            // TODO: return 422 – unimplemented action
+            let authz_action = action(&body.method).map_err(|err| error!("Payload: {}", err))?;
             let (s3_object, authz_object) = match body.set {
                 Some(ref set) => (
                     s3_object(&set, &body.object),
@@ -80,12 +81,13 @@ impl_web! {
             match authz_action {
                 "update" | "delete" => {
                     // TODO: return 403 – anonymous access forbidden
-                    let subject = subject.ok_or(())?;
+                    let subject = subject.ok_or_else(|| error!("Authz: access forbidden for anonymous"))?;
                     let authz_subject = authz::Entity::new(&subject.audience, vec!["accounts", &subject.id]);
 
                     // TODO: return 403 - access forbidden
-                    let authz = self.authz.get(&subject.audience).ok_or(())?;
-                    (config::Authz::client(authz)).authorize(&authz_subject, &authz_object, authz_action).map_err(|err| info!("{}", err))?;
+                    let authz = self.authz.get(&subject.audience).ok_or_else(|| error!("Authz: no configuration for {} audience", subject.audience))?;
+                    let authz_req = authz::Request::new(&authz_subject, &authz_object, authz_action);
+                    (config::Authz::client(authz)).authorize(&authz_req).map_err(|err| error!("Authz: {}, {:?}", err, authz_req))?;
                 }
                 _ => ()
             };
@@ -97,7 +99,8 @@ impl_web! {
             for (key, val) in body.headers {
                 builder = builder.add_header(&key, &val);
             }
-            let uri = builder.build(&self.s3).map_err(|err| info!("{}", err))?;
+            // TODO: return 422 - S3 client fails to build a signed URI
+            let uri = builder.build(&self.s3).map_err(|err| error!("S3Client: {}", err))?;
 
             Ok(SignResponse { uri })
         }

@@ -15,21 +15,35 @@ impl<'a> Entity<'a> {
 type Action<'a> = &'a str;
 
 #[derive(Debug, Serialize)]
-struct Request<'a> {
+pub(crate) struct Request<'a> {
     subject: &'a Entity<'a>,
     object: &'a Entity<'a>,
     action: Action<'a>,
 }
 
+impl<'a> Request<'a> {
+    pub(crate) fn new(subject: &'a Entity<'a>, object: &'a Entity<'a>, action: Action<'a>) -> Self {
+        Self {
+            subject,
+            object,
+            action,
+        }
+    }
+
+    pub(crate) fn action(&self) -> String {
+        self.action.to_string()
+    }
+}
+
 pub(crate) trait Authorization {
-    fn authorize(&self, subject: &Entity, object: &Entity, action: Action) -> Result<(), Error>;
+    fn authorize(&self, req: &Request) -> Result<(), Error>;
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct TrustedClient {}
 
 impl Authorization for TrustedClient {
-    fn authorize(&self, _subject: &Entity, _object: &Entity, _action: Action) -> Result<(), Error> {
+    fn authorize(&self, _req: &Request) -> Result<(), Error> {
         Ok(())
     }
 }
@@ -41,27 +55,20 @@ pub(crate) struct HttpClient {
 }
 
 impl Authorization for HttpClient {
-    fn authorize(&self, subject: &Entity, object: &Entity, action: Action) -> Result<(), Error> {
+    fn authorize(&self, req: &Request) -> Result<(), Error> {
         use reqwest;
 
-        let req = Request {
-            subject,
-            object,
-            action,
-        };
         let client = reqwest::Client::new();
         let resp: Vec<String> = client
             .post(&self.uri)
             .bearer_auth(&self.token)
             .json(&req)
             .send()?
-            .json()?;
+            .json()
+            .map_err(|err| err_msg(format!("bad JSON in the Authz response – {}", err)))?;
 
-        if !resp.contains(&action.to_string()) {
-            return Err(err_msg(format!(
-                "{:?} access to {:?} is forbidden for {:?}",
-                action, object, subject
-            )));
+        if !resp.contains(&req.action()) {
+            return Err(err_msg(format!("access is forbidden")));
         }
 
         Ok(())
