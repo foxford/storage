@@ -3,10 +3,11 @@ mod authz;
 mod config;
 mod util;
 
-use failure::{err_msg, Error};
+use failure;
 use http;
 use std::collections::BTreeMap;
 use tool;
+use tower_web::error::{Error, ErrorKind};
 
 type S3ClientRef = ::std::sync::Arc<tool::s3::Client>;
 
@@ -63,9 +64,13 @@ impl_web! {
     impl Sign {
         #[post("/api/v1/sign")]
         #[content_type("json")]
-        fn read(&self, body: SignPayload, subject: Option<authn::Subject>) -> Result<SignResponse, ()> {
-            // TODO: return 422 – unimplemented action
-            let authz_action = action(&body.method).map_err(|err| error!("Payload: {}", err))?;
+        fn sign_route(&self, body: SignPayload, subject: authn::Subject) -> Result<Result<SignResponse, Error>, ()> {
+            Ok(self.sign(body, subject))
+        }
+
+        fn sign(&self, body: SignPayload, subject: authn::Subject) -> Result<SignResponse, Error> {
+            // TODO: return 400 – unimplemented action
+            let authz_action = action(&body.method).map_err(|_err| Error::from(ErrorKind::bad_request()))?;
             let (s3_object, authz_object) = match body.set {
                 Some(ref set) => (
                     s3_object(&set, &body.object),
@@ -80,14 +85,18 @@ impl_web! {
             // NOTE: authorize only "update" and "delete" actions
             match authz_action {
                 "update" | "delete" => {
-                    // TODO: return 403 – anonymous access forbidden
-                    let subject = subject.ok_or_else(|| error!("Authz: access forbidden for anonymous"))?;
                     let authz_subject = authz::Entity::new(&subject.audience, vec!["accounts", &subject.id]);
 
                     // TODO: return 403 - access forbidden
-                    let authz = self.authz.get(&subject.audience).ok_or_else(|| error!("Authz: no configuration for {} audience", subject.audience))?;
+                    let authz = self.authz.get(&subject.audience).ok_or_else(|| {
+                        error!("Authz: no configuration for {} audience", subject.audience);
+                        Error::from(ErrorKind::forbidden())
+                    })?;
                     let authz_req = authz::Request::new(&authz_subject, &authz_object, authz_action);
-                    (config::Authz::client(authz)).authorize(&authz_req).map_err(|err| error!("Authz: {}, {:?}", err, authz_req))?;
+                    (config::Authz::client(authz)).authorize(&authz_req).map_err(|err| {
+                        error!("Authz: {}, {:?}", err, authz_req);
+                        Error::from(ErrorKind::forbidden())
+                    })?;
                 }
                 _ => ()
             };
@@ -99,22 +108,25 @@ impl_web! {
             for (key, val) in body.headers {
                 builder = builder.add_header(&key, &val);
             }
-            // TODO: return 422 - S3 client fails to build a signed URI
-            let uri = builder.build(&self.s3).map_err(|err| error!("S3Client: {}", err))?;
 
+            // TODO: return 422 - S3 client fails to build a signed URI
+            let uri = builder.build(&self.s3).map_err(|err| {
+                error!("S3Client: {}", err);
+                Error::from(ErrorKind::unprocessable_entity())
+            })?;
             Ok(SignResponse { uri })
         }
     }
 
 }
 
-fn action(method: &str) -> Result<&str, Error> {
+fn action(method: &str) -> Result<&str, failure::Error> {
     match method {
         "HEAD" => Ok("read"),
         "GET" => Ok("read"),
         "PUT" => Ok("update"),
         "DELETE" => Ok("delete"),
-        _ => Err(err_msg("bad method")),
+        _ => Err(failure::err_msg("bad method")),
     }
 }
 
