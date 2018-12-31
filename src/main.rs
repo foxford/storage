@@ -12,18 +12,17 @@ extern crate tower_web;
 extern crate failure;
 extern crate http;
 
-use std::env;
-
 mod app;
 mod tool;
 
 fn main() {
     env_logger::init();
 
-    let key = env::var("AWS_ACCESS_KEY_ID").unwrap();
-    let secret = env::var("AWS_SECRET_ACCESS_KEY").unwrap();
-    let endpoint = env::var("AWS_ENDPOINT").unwrap();
-    let region = env::var("AWS_REGION").unwrap();
+    use std::env::var;
+    let key = var("AWS_ACCESS_KEY_ID").expect("AWS_ACCESS_KEY_ID must be specified");
+    let secret = var("AWS_SECRET_ACCESS_KEY").expect("AWS_SECRET_ACCESS_KEY must be specified");
+    let endpoint = var("AWS_ENDPOINT").expect("AWS_ENDPOINT must be specified");
+    let region = var("AWS_REGION").expect("AWS_REGION must be specified");
 
     let s3 = tool::s3::Client::new(
         &key,
