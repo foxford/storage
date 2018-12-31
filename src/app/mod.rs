@@ -167,9 +167,9 @@ pub(crate) fn run(s3: tool::s3::Client) {
         header::IF_UNMODIFIED_SINCE,
         header::RANGE,
     ]
-        .iter()
-        .cloned()
-        .collect();
+    .iter()
+    .cloned()
+    .collect();
 
     let cors = CorsBuilder::new()
         .allow_origins(config.cors.allow_origins)
