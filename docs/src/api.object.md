@@ -19,7 +19,7 @@ OBJECT | string | _required_ | Name of the object
 
 **Response**
 
-Redirect to the object URI in the underlying storage (307 status code)
+Redirect to the object URI in the underlying storage (303 "See Other" status code)
 
 **Example**
 
