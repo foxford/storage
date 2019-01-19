@@ -1,15 +1,16 @@
-[authn."iam.example.org"]
-audience = "example.org"
+[authn."iam.example.net"]
+audience = "example.net"
 algorithm = "HS256"
-key = "data/keys/example.iam.key.binary"
+key = "data/keys/iam.key.binary.sample"
 
-[authz."example.org"]
-uri = "https://iam.example.org/authz"
+[authz."example.net"]
+uri = "https://iam.example.net/authz"
 token = "secret"
 type = "http"
 
-[namespaces]
-app = "storage.example.org"
+[id]
+lable = "storage"
+audience = "example.org"
 
 [cors]
 allow_origins = "*"
