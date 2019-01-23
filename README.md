@@ -10,7 +10,7 @@ as an underlying backend (Amazon S3, Google Storage, etc.).
 
 
 
-### License
+## License
 
 The source code is provided under the terms of [the MIT license][license].
 

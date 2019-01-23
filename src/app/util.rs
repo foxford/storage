@@ -1,8 +1,8 @@
-use failure::{err_msg, Error};
+use crate::s3::Client;
 use std::collections::BTreeMap;
-use tool::s3::Client;
 use tower_web::extract::{Context, Extract, Immediate};
 use tower_web::util::BufStream;
+use tower_web::Error;
 
 #[derive(Debug)]
 pub(crate) struct S3SignedRequestBuilder {
@@ -53,10 +53,11 @@ impl S3SignedRequestBuilder {
     }
 
     pub(crate) fn build(self, client: &Client) -> Result<String, Error> {
+        let unproc_error = || Error::builder().kind("s3_signed_request_builder_error", "Error building a signed request").status(http::StatusCode::INTERNAL_SERVER_ERROR);
         let mut req = client.create_request(
-            &self.method.ok_or_else(|| err_msg("method is required"))?,
-            &self.bucket.ok_or_else(|| err_msg("bucket is required"))?,
-            &self.object.ok_or_else(|| err_msg("object is required"))?,
+            &self.method.ok_or_else(|| unproc_error().detail("missing method").build())?,
+            &self.bucket.ok_or_else(|| unproc_error().detail("missing bucket").build())?,
+            &self.object.ok_or_else(|| unproc_error().detail("missing object").build())?,
         );
         for (key, val) in self.headers {
             req.add_header(&key, &val);

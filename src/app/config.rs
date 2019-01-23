@@ -1,18 +1,16 @@
-use app::authz;
+use crate::app::authz;
 use config;
-use jose::Algorithm;
+use jsonwebtoken::Algorithm;
 use std::collections::HashMap;
 use std::time::Duration;
 use tower_web::middleware::cors::AllowedOrigins;
 
-mod parse;
-
 #[derive(Debug, Deserialize)]
 pub(crate) struct Authn {
     pub(crate) audience: String,
-    #[serde(deserialize_with = "parse::algorithm")]
+    #[serde(deserialize_with = "crate::serde::algorithm")]
     pub(crate) algorithm: Algorithm,
-    #[serde(deserialize_with = "parse::file")]
+    #[serde(deserialize_with = "crate::serde::file")]
     pub(crate) key: Vec<u8>,
 }
 
@@ -40,10 +38,10 @@ pub(crate) struct Namespaces {
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct Cors {
-    #[serde(deserialize_with = "parse::allowed_origins")]
+    #[serde(deserialize_with = "crate::serde::allowed_origins")]
     #[serde(default)]
     pub(crate) allow_origins: AllowedOrigins,
-    #[serde(deserialize_with = "parse::duration")]
+    #[serde(deserialize_with = "crate::serde::duration")]
     #[serde(default)]
     pub(crate) max_age: Duration,
 }

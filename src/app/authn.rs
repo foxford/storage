@@ -1,8 +1,9 @@
-use app::config::AuthnMap;
+use crate::app::config::AuthnMap;
 use http::header::HeaderValue;
-use tower_web::error::{Error, ErrorKind};
+use http::StatusCode;
 use tower_web::extract::{Context, Error as ExtractError, Extract, Immediate};
 use tower_web::util::BufStream;
+use tower_web::{Error, ErrorBuilder};
 
 #[derive(Debug)]
 pub(crate) struct Subject {
@@ -32,47 +33,39 @@ impl<B: BufStream> Extract<B> for Subject {
                 Ok(sub) => Immediate::ok(sub),
                 Err(err) => Immediate::err(err),
             },
-            // This error won't be thrown if subject is used as an optional argument
-            // NOTE: anonymous access is forbidden
-            None => Immediate::err(authz_error()),
+            None => Immediate::err(error().status(StatusCode::FORBIDDEN).detail("missing access token").build().into()),
         }
     }
 }
 
-fn parse_bearer_token(header: &HeaderValue) -> Result<&str, ExtractError> {
-    let val: Vec<&str> = header
-        .to_str()
-        // NOTE: invalid characters in authorization header
-        .map_err(|_| authn_error())?
-        .split(' ')
-        .collect();
-
-    // NOTE: unsupported or invalid type of the access token
-    match val[..] {
-        ["Bearer", val] => Ok(val),
-        _ => Err(authn_error()),
-    }
-}
-
 fn parse_access_token(header: &HeaderValue, authn: &AuthnMap) -> Result<Subject, ExtractError> {
-    use jose::{dangerous_unsafe_decode, decode, Validation};
+    use jsonwebtoken::{dangerous_unsafe_decode, decode, Validation};
 
     let token = parse_bearer_token(&header)?;
-    let dirty =
-        // NOTE: invalid access token – {err}
-        dangerous_unsafe_decode::<Claims>(token).map_err(|_err| authn_error())?;
+    let dirty = dangerous_unsafe_decode::<Claims>(token).map_err(|_| {
+        ExtractError::from(
+            error()
+                .detail("invalid claims of the access token")
+                .build(),
+        )
+    })?;
 
-    let config = authn
-        .get(&dirty.claims.iss)
-        // NOTE: issuer of the access token is not allowed
-        .ok_or_else(|| authn_error())?;
+    let issuer = dirty.claims.iss;
+    let config = authn.get(&issuer).ok_or_else(|| {
+        let detail = format!("issuer = {} of the access token is not allowed", &issuer);
+        ExtractError::from(error().detail(&detail).build())
+    })?;
 
     let mut validation = Validation::new(config.algorithm);
     validation.set_audience(&config.audience);
     validation.validate_exp = dirty.claims.exp.is_some();
-    let data = decode::<Claims>(token, config.key.as_ref(), &validation)
-        // NOTE: invalid access token – {err}
-        .map_err(|_err| authn_error())?;
+    let data = decode::<Claims>(token, config.key.as_ref(), &validation).map_err(|_| {
+        ExtractError::from(
+            error()
+                .detail("verification of the access token is failed")
+                .build(),
+        )
+    })?;
 
     let sub = Subject {
         id: data.claims.sub,
@@ -81,10 +74,30 @@ fn parse_access_token(header: &HeaderValue, authn: &AuthnMap) -> Result<Subject,
     Ok(sub)
 }
 
-fn authn_error() -> ExtractError {
-    ExtractError::web(Error::from(ErrorKind::unauthorized()))
+fn parse_bearer_token(header: &HeaderValue) -> Result<&str, ExtractError> {
+    let val: Vec<&str> = header
+        .to_str()
+        .map_err(|_| {
+            ExtractError::from(
+                error()
+                    .detail("invalid characters in the authorization header")
+                    .build(),
+            )
+        })?
+        .split(' ')
+        .collect();
+
+    match val[..] {
+        ["Bearer", ref val] => Ok(val),
+        _ => Err(error()
+            .detail("unsupported or invalid type of the access token")
+            .build()
+            .into()),
+    }
 }
 
-fn authz_error() -> ExtractError {
-    ExtractError::web(Error::from(ErrorKind::forbidden()))
+fn error() -> ErrorBuilder {
+    Error::builder()
+        .kind("authn_error", "Error processing the access token")
+        .status(StatusCode::UNAUTHORIZED)
 }

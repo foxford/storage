@@ -1,4 +1,4 @@
-use jose::Algorithm;
+use jsonwebtoken::Algorithm;
 use serde::de;
 use serde::de::{Deserializer, Error, SeqAccess, Unexpected, Visitor};
 use std::fmt;
