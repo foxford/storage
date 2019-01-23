@@ -1,15 +1,11 @@
-mod authn;
-mod authz;
-mod config;
-mod util;
-
-use failure;
-use http;
+use crate::s3;
+use failure::format_err;
+use http::{self, StatusCode};
+use log::{error, info};
 use std::collections::BTreeMap;
-use tool;
-use tower_web::error::{Error, ErrorKind};
+use tower_web::Error;
 
-type S3ClientRef = ::std::sync::Arc<tool::s3::Client>;
+type S3ClientRef = ::std::sync::Arc<s3::Client>;
 
 #[derive(Debug)]
 struct Object {
@@ -65,12 +61,15 @@ impl_web! {
         #[post("/api/v1/sign")]
         #[content_type("json")]
         fn sign_route(&self, body: SignPayload, subject: authn::Subject) -> Result<Result<SignResponse, Error>, ()> {
-            Ok(self.sign(body, subject))
+            // TODO: improve error logging
+            Ok(self.sign(body, subject).map_err(|err| { error!("{}", err); err }))
         }
 
         fn sign(&self, body: SignPayload, subject: authn::Subject) -> Result<SignResponse, Error> {
-            // TODO: return 400 – unimplemented action
-            let authz_action = action(&body.method).map_err(|_err| Error::from(ErrorKind::bad_request()))?;
+            let error = || Error::builder().kind("sign_error", "Error signing a request");
+
+            let authz_action = parse_action(&body.method)
+                .map_err(|err| error().status(StatusCode::BAD_REQUEST).detail(&err.to_string()).build())?;
             let (s3_object, authz_object) = match body.set {
                 Some(ref set) => (
                     s3_object(&set, &body.object),
@@ -86,17 +85,12 @@ impl_web! {
             match authz_action {
                 "update" | "delete" => {
                     let authz_subject = authz::Entity::new(&subject.audience, vec!["accounts", &subject.id]);
-
-                    // TODO: return 403 - access forbidden
                     let authz = self.authz.get(&subject.audience).ok_or_else(|| {
-                        error!("Authz: no configuration for {} audience", subject.audience);
-                        Error::from(ErrorKind::forbidden())
+                        let detail = format!("no authz configuration for the audience = {}", subject.audience);
+                        error().status(StatusCode::FORBIDDEN).detail(&detail).build()
                     })?;
                     let authz_req = authz::Request::new(&authz_subject, &authz_object, authz_action);
-                    (config::Authz::client(authz)).authorize(&authz_req).map_err(|err| {
-                        error!("Authz: {}, {:?}", err, authz_req);
-                        Error::from(ErrorKind::forbidden())
-                    })?;
+                    (config::Authz::client(authz)).authorize(&authz_req)?;
                 }
                 _ => ()
             };
@@ -108,25 +102,21 @@ impl_web! {
             for (key, val) in body.headers {
                 builder = builder.add_header(&key, &val);
             }
+            let uri = builder.build(&self.s3)?;
 
-            // TODO: return 422 - S3 client fails to build a signed URI
-            let uri = builder.build(&self.s3).map_err(|err| {
-                error!("S3Client: {}", err);
-                Error::from(ErrorKind::unprocessable_entity())
-            })?;
             Ok(SignResponse { uri })
         }
     }
 
 }
 
-fn action(method: &str) -> Result<&str, failure::Error> {
+fn parse_action(method: &str) -> Result<&str, failure::Error> {
     match method {
         "HEAD" => Ok("read"),
         "GET" => Ok("read"),
         "PUT" => Ok("update"),
         "DELETE" => Ok("delete"),
-        _ => Err(failure::err_msg("bad method")),
+        _ => Err(format_err!("invalid method = {}", method)),
     }
 }
 
@@ -144,7 +134,7 @@ fn redirect(uri: &str) -> Result<http::Response<&'static str>, ()> {
         .unwrap())
 }
 
-pub(crate) fn run(s3: tool::s3::Client) {
+pub(crate) fn run(s3: s3::Client) {
     use http::{header, Method};
     use std::collections::HashSet;
     use tower_web::middleware::cors::CorsBuilder;
@@ -205,3 +195,8 @@ pub(crate) fn run(s3: tool::s3::Client) {
         .run(&addr)
         .unwrap();
 }
+
+mod authn;
+mod authz;
+mod config;
+mod util;

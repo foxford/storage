@@ -1,4 +1,4 @@
-use failure::{err_msg, Error};
+use tower_web::{Error, ErrorBuilder};
 
 #[derive(Debug, Serialize)]
 pub(crate) struct Entity<'a> {
@@ -63,14 +63,30 @@ impl Authorization for HttpClient {
             .post(&self.uri)
             .bearer_auth(&self.token)
             .json(&req)
-            .send()?
+            .send()
+            .map_err(|err| {
+                let detail = format!("error sending the authorization request, {}", &err);
+                error().detail(&detail).build()
+            })?
             .json()
-            .map_err(|err| err_msg(format!("bad JSON in the Authz response – {}", err)))?;
+            .map_err(|_| {
+                error()
+                    .detail("invalid format of the authorization response")
+                    .build()
+            })?;
 
         if !resp.contains(&req.action()) {
-            return Err(err_msg("access is forbidden"));
+            return Err(error()
+                .detail(&format!("action = {} is not allowed", &req.action()))
+                .build());
         }
 
         Ok(())
     }
+}
+
+fn error() -> ErrorBuilder {
+    Error::builder()
+        .kind("authz_error", "Access is forbidden")
+        .status(http::StatusCode::FORBIDDEN)
 }
