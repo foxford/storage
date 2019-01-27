@@ -1,4 +1,29 @@
+use serde_derive::Deserialize;
+use std::collections::HashMap;
 use tower_web::{Error, ErrorBuilder};
+
+////////////////////////////////////////////////////////////////////////////////
+
+pub(crate) type ConfigMap = HashMap<String, Config>;
+
+#[derive(Debug, Deserialize)]
+#[serde(tag = "type")]
+#[serde(rename_all = "lowercase")]
+pub(crate) enum Config {
+    Trusted(TrustedClient),
+    Http(HttpClient),
+}
+
+impl Config {
+    pub(crate) fn client(config: &Config) -> Box<&Authorization> {
+        match config {
+            Config::Trusted(inner) => Box::new(inner),
+            Config::Http(inner) => Box::new(inner),
+        }
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
 
 #[derive(Debug, Serialize)]
 pub(crate) struct Entity<'a> {
@@ -12,7 +37,11 @@ impl<'a> Entity<'a> {
     }
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
 type Action<'a> = &'a str;
+
+////////////////////////////////////////////////////////////////////////////////
 
 #[derive(Debug, Serialize)]
 pub(crate) struct Request<'a> {
@@ -35,9 +64,13 @@ impl<'a> Request<'a> {
     }
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
 pub(crate) trait Authorization {
     fn authorize(&self, req: &Request) -> Result<(), Error>;
 }
+
+////////////////////////////////////////////////////////////////////////////////
 
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct TrustedClient {}
@@ -47,6 +80,8 @@ impl Authorization for TrustedClient {
         Ok(())
     }
 }
+
+////////////////////////////////////////////////////////////////////////////////
 
 #[derive(Debug, Serialize, Deserialize)]
 pub(crate) struct HttpClient {
@@ -84,6 +119,8 @@ impl Authorization for HttpClient {
         Ok(())
     }
 }
+
+////////////////////////////////////////////////////////////////////////////////
 
 fn error() -> ErrorBuilder {
     Error::builder()

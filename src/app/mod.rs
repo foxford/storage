@@ -1,3 +1,5 @@
+use crate::authn::AccountId;
+use crate::authz;
 use crate::s3;
 use failure::format_err;
 use http::{self, StatusCode};
@@ -19,8 +21,8 @@ struct Set {
 
 #[derive(Debug)]
 struct Sign {
-    authz: config::AuthzMap,
-    ns: config::Namespaces,
+    application_id: AccountId,
+    authz: authz::ConfigMap,
     s3: S3ClientRef,
 }
 
@@ -39,11 +41,21 @@ struct SignResponse {
     uri: String,
 }
 
+#[derive(Debug, Deserialize)]
+pub(crate) struct Cors {
+    #[serde(deserialize_with = "crate::serde::allowed_origins")]
+    #[serde(default)]
+    pub(crate) allow_origins: tower_web::middleware::cors::AllowedOrigins,
+    #[serde(deserialize_with = "crate::serde::duration")]
+    #[serde(default)]
+    pub(crate) max_age: std::time::Duration,
+}
+
 impl_web! {
 
     impl Object {
         #[get("/api/v1/buckets/:bucket/objects/:object")]
-        fn read(&self, bucket: String, object: String/*, _sub: Option<authn::Subject>*/) -> Result<http::Response<&'static str>, ()> {
+        fn read(&self, bucket: String, object: String/*, _sub: Option<AccountId>*/) -> Result<http::Response<&'static str>, ()> {
             // TODO: Add authorization
             redirect(&self.s3.presigned_url("GET", &bucket, &object))
         }
@@ -51,7 +63,7 @@ impl_web! {
 
     impl Set {
         #[get("/api/v1/buckets/:bucket/sets/:set/objects/:object")]
-        fn read(&self, bucket: String, set: String, object: String/*, _sub: Option<authn::Subject>*/) -> Result<http::Response<&'static str>, ()> {
+        fn read(&self, bucket: String, set: String, object: String/*, _sub: Option<AccountId>*/) -> Result<http::Response<&'static str>, ()> {
             // TODO: Add authorization
             redirect(&self.s3.presigned_url("GET", &bucket, &s3_object(&set, &object)))
         }
@@ -60,45 +72,50 @@ impl_web! {
     impl Sign {
         #[post("/api/v1/sign")]
         #[content_type("json")]
-        fn sign_route(&self, body: SignPayload, subject: authn::Subject) -> Result<Result<SignResponse, Error>, ()> {
+        fn sign_route(&self, body: SignPayload, sub: AccountId) -> Result<Result<SignResponse, Error>, ()> {
             // TODO: improve error logging
-            Ok(self.sign(body, subject).map_err(|err| { error!("{}", err); err }))
+            Ok(self.sign(body, sub).map_err(|err| { error!("{}", err); err }))
         }
 
-        fn sign(&self, body: SignPayload, subject: authn::Subject) -> Result<SignResponse, Error> {
+        fn sign(&self, body: SignPayload, sub: AccountId) -> Result<SignResponse, Error> {
             let error = || Error::builder().kind("sign_error", "Error signing a request");
 
-            let authz_action = parse_action(&body.method)
-                .map_err(|err| error().status(StatusCode::BAD_REQUEST).detail(&err.to_string()).build())?;
-            let (s3_object, authz_object) = match body.set {
-                Some(ref set) => (
-                    s3_object(&set, &body.object),
-                    authz::Entity::new(&self.ns.app, vec!["buckets", &body.bucket, "sets", set]),
-                ),
-                None => (
-                    body.object.to_owned(),
-                    authz::Entity::new(&self.ns.app, vec!["buckets", &body.bucket, "objects", &body.object]),
-                )
-            };
+            let object = {
+                let ns = self.application_id.to_string();
+                let (object, zobj) = match body.set {
+                    Some(ref set) => (
+                        s3_object(&set, &body.object),
+                        authz::Entity::new(&ns, vec!["buckets", &body.bucket, "sets", set]),
+                    ),
+                    None => (
+                        body.object.to_owned(),
+                        authz::Entity::new(&ns, vec!["buckets", &body.bucket, "objects", &body.object]),
+                    )
+                };
+                let zact = parse_action(&body.method)
+                    .map_err(|err| error().status(StatusCode::BAD_REQUEST).detail(&err.to_string()).build())?;
 
-            // NOTE: authorize only "update" and "delete" actions
-            match authz_action {
-                "update" | "delete" => {
-                    let authz_subject = authz::Entity::new(&subject.audience, vec!["accounts", &subject.id]);
-                    let authz = self.authz.get(&subject.audience).ok_or_else(|| {
-                        let detail = format!("no authz configuration for the audience = {}", subject.audience);
-                        error().status(StatusCode::FORBIDDEN).detail(&detail).build()
-                    })?;
-                    let authz_req = authz::Request::new(&authz_subject, &authz_object, authz_action);
-                    (config::Authz::client(authz)).authorize(&authz_req)?;
-                }
-                _ => ()
+                // NOTE: authorize only "update" and "delete" actions
+                match zact {
+                    "update" | "delete" => {
+                        let zsub = authz::Entity::new(sub.audience(), vec!["accounts", sub.label()]);
+                        let authz = self.authz.get(sub.audience()).ok_or_else(|| {
+                            let detail = format!("no authz configuration for the audience = {}", sub.audience());
+                            error().status(StatusCode::FORBIDDEN).detail(&detail).build()
+                        })?;
+                        let zreq = authz::Request::new(&zsub, &zobj, zact);
+                        (authz::Config::client(authz)).authorize(&zreq)?;
+                    }
+                    _ => ()
+                };
+
+                object
             };
 
             let mut builder = util::S3SignedRequestBuilder::new()
                 .method(&body.method)
                 .bucket(&body.bucket)
-                .object(&s3_object);
+                .object(&object);
             for (key, val) in body.headers {
                 builder = builder.add_header(&key, &val);
             }
@@ -177,8 +194,8 @@ pub(crate) fn run(s3: s3::Client) {
     let object = Object { s3: s3.clone() };
     let set = Set { s3: s3.clone() };
     let sign = Sign {
+        application_id: config.id,
         authz: config.authz,
-        ns: config.namespaces,
         s3: s3.clone(),
     };
 
@@ -196,7 +213,5 @@ pub(crate) fn run(s3: s3::Client) {
         .unwrap();
 }
 
-mod authn;
-mod authz;
 mod config;
 mod util;
