@@ -5,6 +5,8 @@ use std::fmt;
 use std::time::Duration;
 use tower_web::middleware::cors::AllowedOrigins;
 
+////////////////////////////////////////////////////////////////////////////////
+
 struct AlgorithmVisitor;
 
 impl<'de> Visitor<'de> for AlgorithmVisitor {
@@ -33,6 +35,8 @@ where
 {
     deserializer.deserialize_str(AlgorithmVisitor)
 }
+
+////////////////////////////////////////////////////////////////////////////////
 
 struct FileVisitor;
 
@@ -64,6 +68,8 @@ where
     deserializer.deserialize_str(FileVisitor)
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
 struct DurationVisitor;
 
 impl<'de> Visitor<'de> for DurationVisitor {
@@ -87,6 +93,8 @@ where
 {
     deserializer.deserialize_u64(DurationVisitor)
 }
+
+////////////////////////////////////////////////////////////////////////////////
 
 struct AllowedOriginsVisitor;
 

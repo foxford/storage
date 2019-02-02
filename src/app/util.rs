@@ -53,11 +53,25 @@ impl S3SignedRequestBuilder {
     }
 
     pub(crate) fn build(self, client: &Client) -> Result<String, Error> {
-        let unproc_error = || Error::builder().kind("s3_signed_request_builder_error", "Error building a signed request").status(http::StatusCode::INTERNAL_SERVER_ERROR);
+        let unproc_error = || {
+            Error::builder()
+                .kind(
+                    "s3_signed_request_builder_error",
+                    "Error building a signed request",
+                )
+                .status(http::StatusCode::INTERNAL_SERVER_ERROR)
+        };
+
         let mut req = client.create_request(
-            &self.method.ok_or_else(|| unproc_error().detail("missing method").build())?,
-            &self.bucket.ok_or_else(|| unproc_error().detail("missing bucket").build())?,
-            &self.object.ok_or_else(|| unproc_error().detail("missing object").build())?,
+            &self
+                .method
+                .ok_or_else(|| unproc_error().detail("missing method").build())?,
+            &self
+                .bucket
+                .ok_or_else(|| unproc_error().detail("missing bucket").build())?,
+            &self
+                .object
+                .ok_or_else(|| unproc_error().detail("missing object").build())?,
         );
         for (key, val) in self.headers {
             req.add_header(&key, &val);
