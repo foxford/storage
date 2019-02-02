@@ -17,6 +17,7 @@ spec:
       containers:
         - name: storage
           image: netologygroup/storage
+          imagePullPolicy: Always
           ports:
             - containerPort: 8080
           env:
