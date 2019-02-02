@@ -18,18 +18,18 @@ In order to authorize an **action** performed by a **subject** to an **object**,
 }
 ```
 
-Subject's namespace and account identifier are retrieved from `aud` and `sub` claims of an **access token** respectively. If an access token is not presented in a request, the account identifier will be replaced with `"anonymous"` keyword. URI of authorization endpoint, object and anonymous namespaces are configured through the application configuration file.
+Subject's namespace and account label are retrieved from `aud` and `sub` claims of an **access token** respectively. If the access token is not presented in a request, the `"anonymous"` keyword will be sent as account label. URI of authorization endpoint, object and anonymous namespaces are configured through the application configuration file.
 
 Possible values for `SUBJECT`:
-- `["accounts", ACCOUNT_ID]`
-- `["accounts", "anonymous"]`
 
-Possible values for `OBJECT`:
-- `["buckets", BUCKET, "sets", SET]`
-- `["buckets", BUCKET, "objects", OBJECT]`
+| subject                     |
+| --------------------------- |
+| ["accounts", ACCOUNT_LABEL] |
+| ["accounts", "anonymous"]   |
 
-Possible values for `ACTION`:
-- `"create"`
-- `"read"`
-- `"update"`
-- `"delete"`
+Possible values for `OBJECT` and `ACTION`:
+
+| object / action                        | read | update | delete |
+| -------------------------------------- | ---- | ------ | ------ |
+| ["buckets", BUCKET, "sets", SET]       |    + |      + |      + |
+| ["buckets", BUCKET, "objects", OBJECT] |    + |      + |      + |
