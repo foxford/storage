@@ -53,4 +53,4 @@ impl FromStr for AccountId {
 
 pub(crate) mod jose;
 
-pub(crate) use self::jose::ConfigMap;
+pub(crate) use self::jose::extract::ConfigMap;
