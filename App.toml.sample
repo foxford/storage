@@ -1,16 +1,17 @@
 [id]
 label = "storage"
-audience = "example.org"
+audience = "svc.example.org"
 
 [authn."iam.example.net"]
-audience = "example.net"
+audience = ["example.net"]
 algorithm = "HS256"
 key = "data/keys/iam.key.binary.sample"
 
 [authz."example.net"]
-uri = "https://iam.example.net/authz"
-token = "secret"
 type = "http"
+uri = "https://iam.example.net/authz"
+algorithm = "ES256"
+key = "data/keys/iam.public_key.p8.der.sample"
 
 [cors]
 allow_origins = "*"

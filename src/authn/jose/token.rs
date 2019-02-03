@@ -1,7 +1,6 @@
-use crate::authn::AccountId;
 use chrono::{DateTime, Duration, Utc};
 use failure::{err_msg, format_err, Error};
-use jsonwebtoken::{decode, encode, Algorithm, Header, TokenData, Validation};
+use jsonwebtoken::{encode, Algorithm, Header};
 use serde_derive::{Deserialize, Serialize};
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -11,6 +10,7 @@ pub(crate) struct Claims {
     iss: String,
     aud: String,
     sub: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     exp: Option<u64>,
 }
 
@@ -36,7 +36,8 @@ impl Claims {
 
 pub(crate) struct TokenBuilder<'a> {
     issuer: Option<&'a str>,
-    subject: Option<&'a AccountId>,
+    audience: Option<&'a str>,
+    subject: Option<&'a str>,
     expiration_time: Option<DateTime<Utc>>,
     algorithm: Option<&'a Algorithm>,
     key: Option<&'a [u8]>,
@@ -46,6 +47,7 @@ impl<'a> TokenBuilder<'a> {
     pub(crate) fn new() -> Self {
         Self {
             issuer: None,
+            audience: None,
             subject: None,
             expiration_time: None,
             algorithm: None,
@@ -56,6 +58,7 @@ impl<'a> TokenBuilder<'a> {
     pub(crate) fn issuer(self, issuer: &'a str) -> Self {
         Self {
             issuer: Some(issuer),
+            audience: self.audience,
             subject: self.subject,
             expiration_time: self.expiration_time,
             algorithm: self.algorithm,
@@ -63,9 +66,21 @@ impl<'a> TokenBuilder<'a> {
         }
     }
 
-    pub(crate) fn subject(self, subject: &'a AccountId) -> Self {
+    pub(crate) fn audience(self, audience: &'a str) -> Self {
         Self {
             issuer: self.issuer,
+            audience: Some(audience),
+            subject: self.subject,
+            expiration_time: self.expiration_time,
+            algorithm: self.algorithm,
+            key: self.key,
+        }
+    }
+
+    pub(crate) fn subject(self, subject: &'a str) -> Self {
+        Self {
+            issuer: self.issuer,
+            audience: self.audience,
             subject: Some(subject),
             expiration_time: self.expiration_time,
             algorithm: self.algorithm,
@@ -77,6 +92,7 @@ impl<'a> TokenBuilder<'a> {
         let expiration_time = Utc::now() + Duration::seconds(expires_in);
         Self {
             issuer: self.issuer,
+            audience: self.audience,
             subject: self.subject,
             expiration_time: Some(expiration_time),
             algorithm: self.algorithm,
@@ -87,6 +103,7 @@ impl<'a> TokenBuilder<'a> {
     pub(crate) fn key(self, algorithm: &'a Algorithm, key: &'a [u8]) -> Self {
         Self {
             issuer: self.issuer,
+            audience: self.audience,
             subject: self.subject,
             expiration_time: self.expiration_time,
             algorithm: Some(algorithm),
@@ -94,17 +111,17 @@ impl<'a> TokenBuilder<'a> {
         }
     }
 
-    pub(crate) fn build(self) -> Result<String, failure::Error> {
-        use failure::{err_msg, format_err};
+    pub(crate) fn build(self) -> Result<String, Error> {
         let issuer = self.issuer.ok_or_else(|| err_msg("invalid issuer"))?;
+        let audience = self.audience.ok_or_else(|| err_msg("missing audience"))?;
         let subject = self.subject.ok_or_else(|| err_msg("missing subject"))?;
         let algorithm = self.algorithm.ok_or_else(|| err_msg("missing algorithm"))?;
         let key = self.key.ok_or_else(|| err_msg("missing key"))?;
 
         let claims = Claims {
             iss: issuer.to_owned(),
-            sub: subject.label().to_owned(),
-            aud: subject.audience().to_owned(),
+            aud: audience.to_owned(),
+            sub: subject.to_owned(),
             exp: self.expiration_time.map(|val| val.timestamp() as u64),
         };
 
@@ -113,29 +130,4 @@ impl<'a> TokenBuilder<'a> {
 
         encode(&header, &claims, key).map_err(|err| format_err!("encoding error – {}", err))
     }
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-pub(crate) fn decode_account_id(
-    token: &str,
-    verifier: &Validation,
-    key: &[u8],
-) -> Result<AccountId, Error> {
-    let data = decode::<Claims>(token, key, &verifier).map_err(|err| {
-        format_err!(
-            "verification of the authentication token failed – {}",
-            err,
-        )
-    })?;
-
-    Ok(AccountId::new(
-        data.claims.subject(),
-        data.claims.audience(),
-    ))
-}
-
-pub(crate) fn parse_jws_compact(token: &str) -> Result<TokenData<Claims>, Error> {
-    jsonwebtoken::dangerous_unsafe_decode(token)
-        .map_err(|_| err_msg("invalid claims of the authentication token"))
 }

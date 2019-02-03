@@ -2,7 +2,7 @@ use crate::authn::jose::token;
 use crate::authn::AccountId;
 use http::header::HeaderValue;
 use http::StatusCode;
-use jsonwebtoken::{Algorithm, Validation};
+use jsonwebtoken::{decode, Algorithm, TokenData, Validation};
 use serde_derive::Deserialize;
 use std::collections::{HashMap, HashSet};
 use std::ops::Deref;
@@ -83,8 +83,7 @@ impl<B: BufStream> Extract<B> for AccountId {
 
 fn extract_account_id(header: &HeaderValue, authn: &ConfigMap) -> Result<AccountId, ExtractError> {
     let token = parse_bearer_token(header)?;
-    let parts = token::parse_jws_compact(token)
-        .map_err(|err| ExtractError::from(error().detail(&err.to_string()).build()))?;
+    let parts = parse_jws_compact(token)?;
     let config = authn.get(parts.claims.issuer()).ok_or_else(|| {
         let detail = format!(
             "issuer = {} of the authentication token is not allowed",
@@ -108,8 +107,7 @@ fn extract_account_id(header: &HeaderValue, authn: &ConfigMap) -> Result<Account
     let mut verifier = Validation::new(config.algorithm);
     verifier.validate_exp = parts.claims.expiration_time().is_some();
 
-    token::decode_account_id(token, &verifier, config.key.as_ref())
-        .map_err(|err| ExtractError::from(error().detail(&err.to_string()).build()))
+    decode_account_id(token, &verifier, config.key.as_ref()).map_err(|err| err.into())
 }
 
 fn parse_bearer_token(header: &HeaderValue) -> Result<&str, ExtractError> {
@@ -132,6 +130,34 @@ fn parse_bearer_token(header: &HeaderValue) -> Result<&str, ExtractError> {
             .build()
             .into()),
     }
+}
+
+pub(crate) fn decode_account_id(
+    token: &str,
+    verifier: &Validation,
+    key: &[u8],
+) -> Result<AccountId, Error> {
+    let data = decode::<token::Claims>(token, key, &verifier).map_err(|err| {
+        error()
+            .detail(&format!(
+                "verification of the authentication token failed – {}",
+                &err
+            ))
+            .build()
+    })?;
+
+    Ok(AccountId::new(
+        data.claims.subject(),
+        data.claims.audience(),
+    ))
+}
+
+pub(crate) fn parse_jws_compact(token: &str) -> Result<TokenData<token::Claims>, Error> {
+    jsonwebtoken::dangerous_unsafe_decode(token).map_err(|_| {
+        error()
+            .detail("invalid claims of the authentication token")
+            .build()
+    })
 }
 
 ////////////////////////////////////////////////////////////////////////////////
