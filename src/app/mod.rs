@@ -22,7 +22,7 @@ struct Set {
 #[derive(Debug)]
 struct Sign {
     application_id: AccountId,
-    authz: authz::ConfigMap,
+    authz: authz::ClientMap,
     s3: S3ClientRef,
 }
 
@@ -99,12 +99,8 @@ impl_web! {
                 match zact {
                     "update" | "delete" => {
                         let zsub = authz::Entity::new(sub.audience(), vec!["accounts", sub.label()]);
-                        let authz = self.authz.get(sub.audience()).ok_or_else(|| {
-                            let detail = format!("no authz configuration for the audience = {}", sub.audience());
-                            error().status(StatusCode::FORBIDDEN).detail(&detail).build()
-                        })?;
-                        let zreq = authz::Request::new(&zsub, &zobj, zact);
-                        (authz::Config::client(authz)).authorize(&zreq)?;
+                        let zint = authz::Intent::new(&zsub, &zobj, zact);
+                        self.authz.authorize(sub.audience(), &zint)?;
                     }
                     _ => ()
                 };
@@ -195,7 +191,7 @@ pub(crate) fn run(s3: s3::Client) {
     let set = Set { s3: s3.clone() };
     let sign = Sign {
         application_id: config.id,
-        authz: config.authz,
+        authz: config.authz.into(),
         s3: s3.clone(),
     };
 
