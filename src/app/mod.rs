@@ -100,7 +100,8 @@ impl_web! {
                     "update" | "delete" => {
                         let zsub = authz::Entity::new(sub.audience(), vec!["accounts", sub.label()]);
                         let zint = authz::Intent::new(&zsub, &zobj, zact);
-                        self.authz.authorize(sub.audience(), &zint)?;
+                        self.authz.authorize(sub.audience(), &zint)
+                            .map_err(|err| error().status(StatusCode::FORBIDDEN).detail(&err.to_string()).build())?;
                     }
                     _ => ()
                 };
@@ -187,11 +188,15 @@ pub(crate) fn run(s3: s3::Client) {
     // Resources
     let s3 = S3ClientRef::new(s3);
 
+    // Authz
+    let authz = authz::ClientMap::from_config(&config.id, config.authz)
+        .expect("Error converting authn config to clients");
+
     let object = Object { s3: s3.clone() };
     let set = Set { s3: s3.clone() };
     let sign = Sign {
         application_id: config.id,
-        authz: config.authz.into(),
+        authz,
         s3: s3.clone(),
     };
 

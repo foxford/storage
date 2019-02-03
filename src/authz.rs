@@ -1,7 +1,10 @@
+use crate::authn::jose::token::TokenBuilder;
+use crate::authn::AccountId;
+use failure::{format_err, Error};
+use jsonwebtoken::Algorithm;
 use serde_derive::Deserialize;
 use std::collections::HashMap;
 use std::fmt;
-use tower_web::{Error, ErrorBuilder};
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -37,27 +40,37 @@ pub(crate) struct ClientMap {
 }
 
 impl ClientMap {
+    pub(crate) fn from_config(me: &AccountId, m: ConfigMap) -> Result<Self, Error> {
+        let mut inner: HashMap<String, Client> = HashMap::new();
+        for (audience, config) in m {
+            match config {
+                Config::Trusted(config) => {
+                    let client = config.into_client(me, &audience)?;
+                    inner.insert(audience, client);
+                }
+                Config::Http(config) => {
+                    let client = config.into_client(me, &audience)?;
+                    inner.insert(audience, client);
+                }
+            }
+        }
+
+        Ok(Self { inner })
+    }
+
     pub(crate) fn authorize(&self, audience: &str, intent: &Intent) -> Result<(), Error> {
-        let client = self.inner.get(audience).ok_or_else(|| {
-            let detail = format!("no authz configuration for the audience = {}", audience);
-            error().detail(&detail).build()
-        })?;
+        let client = self
+            .inner
+            .get(audience)
+            .ok_or_else(|| format_err!("no authz configuration for the audience = {}", audience))?;
         client.authorize(intent)
     }
 }
 
-impl From<ConfigMap> for ClientMap {
-    fn from(m: ConfigMap) -> Self {
-        let inner: HashMap<String, Client> = m
-            .into_iter()
-            .map(|val| match val {
-                (aud, Config::Trusted(config)) => (aud, config.into()),
-                (aud, Config::Http(config)) => (aud, config.into()),
-            })
-            .collect();
+////////////////////////////////////////////////////////////////////////////////
 
-        Self { inner }
-    }
+trait IntoClient {
+    fn into_client(self, me: &AccountId, audience: &str) -> Result<Client, Error>;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -103,7 +116,7 @@ impl<'a> Intent<'a> {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub(crate) struct TrustedConfig {}
 
 impl Authorize for TrustedConfig {
@@ -112,21 +125,29 @@ impl Authorize for TrustedConfig {
     }
 }
 
-impl From<TrustedConfig> for Client {
-    fn from(config: TrustedConfig) -> Self {
-        Box::new(config)
+impl IntoClient for TrustedConfig {
+    fn into_client(self, _me: &AccountId, _audience: &str) -> Result<Client, Error> {
+        Ok(Box::new(self))
     }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Deserialize)]
 pub(crate) struct HttpConfig {
+    uri: String,
+    #[serde(deserialize_with = "crate::serde::algorithm")]
+    algorithm: Algorithm,
+    #[serde(deserialize_with = "crate::serde::file")]
+    key: Vec<u8>,
+}
+
+pub(crate) struct HttpClient {
     pub(crate) uri: String,
     pub(crate) token: String,
 }
 
-impl Authorize for HttpConfig {
+impl Authorize for HttpClient {
     fn authorize(&self, intent: &Intent) -> Result<(), Error> {
         use reqwest;
 
@@ -136,37 +157,42 @@ impl Authorize for HttpConfig {
             .bearer_auth(&self.token)
             .json(&intent)
             .send()
-            .map_err(|err| {
-                let detail = format!("error sending the authorization request, {}", &err);
-                error().detail(&detail).build()
-            })?
+            .map_err(|err| format_err!("error sending the authorization request, {}", &err))?
             .json()
             .map_err(|_| {
-                error()
-                    .detail("invalid format of the authorization response")
-                    .build()
+                format_err!(
+                    "invalid format of the authorization response, intent = '{}'",
+                    serde_json::to_string(&intent).unwrap_or_else(|_| format!("{:?}", &intent)),
+                )
             })?;
 
         if !resp.contains(&intent.action()) {
-            return Err(error()
-                .detail(&format!("action = {} is not allowed", &intent.action()))
-                .build());
+            return Err(format_err!("action = {} is not allowed", &intent.action()));
         }
 
         Ok(())
     }
 }
 
-impl From<HttpConfig> for Client {
-    fn from(config: HttpConfig) -> Self {
-        Box::new(config)
+impl IntoClient for HttpConfig {
+    fn into_client(self, me: &AccountId, audience: &str) -> Result<Client, Error> {
+        let token = TokenBuilder::new()
+            .issuer(me.audience())
+            .audience(audience)
+            .subject(me.label())
+            .key(&self.algorithm, &self.key)
+            .build()
+            .map_err(|err| {
+                format_err!(
+                    "error converting authz config for audience = '{}' into client – {}",
+                    audience,
+                    &err,
+                )
+            })?;
+
+        Ok(Box::new(HttpClient {
+            uri: self.uri,
+            token,
+        }))
     }
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-fn error() -> ErrorBuilder {
-    Error::builder()
-        .kind("authz_error", "Access is forbidden")
-        .status(http::StatusCode::FORBIDDEN)
 }

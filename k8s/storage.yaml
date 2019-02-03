@@ -51,11 +51,14 @@ spec:
               mountPath: /app/App.toml
               subPath: App.toml
             - name: foxford
-              mountPath: /app/data/keys/foxford.20180915.iam.key.binary
-              subPath: iam.key
+              mountPath: /app/data/keys/iam.foxford.public_key.p8.der
+              subPath: iam.foxford.public_key
             - name: netology
-              mountPath: /app/data/keys/netology.20181224.iam.key.binary
-              subPath: iam.key
+              mountPath: /app/data/keys/iam.netology.public_key.p8.der
+              subPath: iam.netology.public_key
+            - name: svc
+              mountPath: /app/data/keys/svc.private_key.p8.der
+              subPath: svc.private_key
           resources:
             requests:
               cpu: 100m
@@ -69,7 +72,10 @@ spec:
             name: storage-config
         - name: foxford
           secret:
-            secretName: foxford-20180915-credentials
+            secretName: iam.foxford-2019-02-04-pkcs8-der-credentials
         - name: netology
           secret:
-            secretName: netology-20181224-credentials
+            secretName: iam.netology-2019-02-04-pkcs8-der-credentials
+        - name: svc
+          secret:
+            secretName: svc-pkcs8-der-credentials
