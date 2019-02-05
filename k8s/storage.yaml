@@ -53,6 +53,9 @@ spec:
             - name: foxford
               mountPath: /app/data/keys/foxford.20180915.iam.key.binary
               subPath: iam.key
+            - name: netology
+              mountPath: /app/data/keys/netology.20181224.iam.key.binary
+              subPath: iam.key
           resources:
             requests:
               cpu: 100m
@@ -67,3 +70,6 @@ spec:
         - name: foxford
           secret:
             secretName: foxford-20180915-credentials
+        - name: netology
+          secret:
+            secretName: netology-20181224-credentials
