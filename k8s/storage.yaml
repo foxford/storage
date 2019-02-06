@@ -59,6 +59,12 @@ spec:
             - name: svc
               mountPath: /app/data/keys/svc.private_key.p8.der
               subPath: svc.private_key
+            - name: foxford-prev
+              mountPath: /app/data/keys/foxford.20180915.iam.key.binary
+              subPath: iam.key
+            - name: netology-prev
+              mountPath: /app/data/keys/netology.20181224.iam.key.binary
+              subPath: iam.key
           resources:
             requests:
               cpu: 100m
@@ -76,6 +82,12 @@ spec:
         - name: netology
           secret:
             secretName: iam.netology-2019-02-04-pkcs8-der-credentials
+        - name: foxford-prev
+          secret:
+            secretName: foxford-20180915-credentials
+        - name: netology-prev
+          secret:
+            secretName: netology-20181224-credentials
         - name: svc
           secret:
             secretName: svc-pkcs8-der-credentials
