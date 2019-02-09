@@ -81,15 +81,14 @@ impl_web! {
             let error = || Error::builder().kind("sign_error", "Error signing a request");
 
             let object = {
-                let ns = self.application_id.to_string();
                 let (object, zobj) = match body.set {
                     Some(ref set) => (
                         s3_object(&set, &body.object),
-                        authz::Entity::new(&ns, vec!["buckets", &body.bucket, "sets", set]),
+                        vec!["buckets", &body.bucket, "sets", set]
                     ),
                     None => (
                         body.object.to_owned(),
-                        authz::Entity::new(&ns, vec!["buckets", &body.bucket, "objects", &body.object]),
+                        vec!["buckets", &body.bucket, "objects", &body.object]
                     )
                 };
                 let zact = parse_action(&body.method)
@@ -98,9 +97,7 @@ impl_web! {
                 // NOTE: authorize only "update" and "delete" actions
                 match zact {
                     "update" | "delete" => {
-                        let zsub = authz::Entity::new(sub.audience(), vec!["accounts", sub.label()]);
-                        let zint = authz::Intent::new(&zsub, &zobj, zact);
-                        self.authz.authorize(sub.audience(), &zint)
+                        self.authz.authorize(sub.audience(), &sub, zobj, zact)
                             .map_err(|err| error().status(StatusCode::FORBIDDEN).detail(&err.to_string()).build())?;
                     }
                     _ => ()
