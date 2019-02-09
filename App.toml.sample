@@ -2,14 +2,14 @@
 label = "storage"
 audience = "svc.example.org"
 
-[authn."iam.example.net"]
-audience = ["example.net"]
+[authn."iam.svc.example.net"]
+audience = ["usr.example.net"]
 algorithm = "HS256"
 key = "data/keys/iam.key.binary.sample"
 
 [authz."example.net"]
 type = "http"
-uri = "https://iam.example.net/authz"
+uri = "https://iam.svc.example.net/authz"
 algorithm = "ES256"
 key = "data/keys/iam.public_key.p8.der.sample"
 
