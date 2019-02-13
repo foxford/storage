@@ -2,9 +2,9 @@ use config;
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct Config {
-    pub(crate) id: crate::authn::AccountId,
-    pub(crate) authn: crate::authn::ConfigMap,
-    pub(crate) authz: crate::authz::ConfigMap,
+    pub(crate) id: svc_authn::AccountId,
+    pub(crate) authn: svc_authn::jose::ConfigMap,
+    pub(crate) authz: svc_authz::ConfigMap,
     pub(crate) cors: crate::app::Cors,
 }
 

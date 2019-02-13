@@ -22,7 +22,5 @@ fn main() {
 }
 
 mod app;
-mod authn;
-mod authz;
 mod s3;
 mod serde;

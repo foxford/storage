@@ -1,11 +1,11 @@
-use crate::authn::AccountId;
-use crate::authz;
-use crate::s3;
 use failure::format_err;
 use http::{self, StatusCode};
 use log::{error, info};
 use std::collections::BTreeMap;
+use svc_authn::AccountId;
 use tower_web::Error;
+
+use crate::s3;
 
 type S3ClientRef = ::std::sync::Arc<s3::Client>;
 
@@ -22,7 +22,7 @@ struct Set {
 #[derive(Debug)]
 struct Sign {
     application_id: AccountId,
-    authz: authz::ClientMap,
+    authz: svc_authz::ClientMap,
     s3: S3ClientRef,
 }
 
@@ -186,8 +186,8 @@ pub(crate) fn run(s3: s3::Client) {
     let s3 = S3ClientRef::new(s3);
 
     // Authz
-    let authz = authz::ClientMap::from_config(&config.id, config.authz)
-        .expect("Error converting authn config to clients");
+    let authz = svc_authz::ClientMap::new(&config.id, config.authz)
+        .expect("Error converting authz config to clients");
 
     let object = Object { s3: s3.clone() };
     let set = Set { s3: s3.clone() };

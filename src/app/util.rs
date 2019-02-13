@@ -1,8 +1,9 @@
-use crate::s3::Client;
 use std::collections::BTreeMap;
 use tower_web::extract::{Context, Extract, Immediate};
 use tower_web::util::BufStream;
 use tower_web::Error;
+
+use crate::s3::Client;
 
 #[derive(Debug)]
 pub(crate) struct S3SignedRequestBuilder {
