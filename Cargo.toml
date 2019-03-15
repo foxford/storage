@@ -11,12 +11,12 @@ config = "0.9"
 failure = "0.1"
 serde = "1.0"
 serde_derive = "1.0"
-rusoto_core = "0.35"
-rusoto_s3 = "0.35"
+rusoto_core = "0.37"
+rusoto_s3 = "0.37"
 tower-web = "0.3"
 http = "0.1"
-svc-authn = { version = "0.1", features = ["jose", "tower-web"] }
-svc-authz = "0.1"
+svc-authn = { version = "0.3", features = ["jose", "tower-web"] }
+svc-authz = "0.3"
 
 [patch.crates-io]
 # ES256 support

@@ -1,6 +1,4 @@
-[id]
-label = "storage"
-audience = "svc.example.org"
+id = "storage.svc.example.org"
 
 [authn."iam.svc.example.net"]
 audience = ["usr.example.net"]
@@ -11,7 +9,7 @@ key = "data/keys/iam.key.binary.sample"
 type = "http"
 uri = "https://iam.svc.example.net/authz"
 algorithm = "ES256"
-key = "data/keys/svc.public_key.p8.der.sample"
+key = "data/keys/svc.private_key.p8.der.sample"
 
 [cors]
 allow_origins = "*"
