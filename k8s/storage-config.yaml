@@ -1,0 +1,22 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: storage-config
+data:
+  App.toml: |
+    id = "storage.svc.example.org"
+
+    [authn."iam.svc.example.net"]
+    audience = ["usr.example.net"]
+    algorithm = "ES256"
+    key = "data/keys/iam.public_key.p8.der.sample"
+
+    [authz."example.net"]
+    type = "http"
+    uri = "https://iam.svc.example.net/authz"
+    algorithm = "ES256"
+    key = "data/keys/svc.private_key.p8.der.sample"
+
+    [cors]
+    allow_origins = "*"
+    max_age = 86400

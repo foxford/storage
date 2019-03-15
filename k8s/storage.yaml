@@ -24,22 +24,22 @@ spec:
             - name: "AWS_ACCESS_KEY_ID"
               valueFrom:
                 secretKeyRef:
-                  name: integros-storage-credentials
+                  name: aws-s3-credentials
                   key: key
             - name: "AWS_SECRET_ACCESS_KEY"
               valueFrom:
                 secretKeyRef:
-                  name: integros-storage-credentials
+                  name: aws-s3-credentials
                   key: secret
             - name: "AWS_ENDPOINT"
               valueFrom:
                 secretKeyRef:
-                  name: integros-storage-credentials
+                  name: aws-s3-credentials
                   key: endpoint
             - name: "AWS_REGION"
               valueFrom:
                 secretKeyRef:
-                  name: integros-storage-credentials
+                  name: aws-s3-credentials
                   key: region
             - name: "RUST_LOG"
               valueFrom:
@@ -50,21 +50,12 @@ spec:
             - name: config
               mountPath: /app/App.toml
               subPath: App.toml
-            - name: foxford
-              mountPath: /app/data/keys/iam.foxford.public_key.p8.der
-              subPath: iam.foxford.public_key
-            - name: netology
-              mountPath: /app/data/keys/iam.netology.public_key.p8.der
-              subPath: iam.netology.public_key
+            - name: iam
+              mountPath: /app/data/keys/iam.public_key.p8.der
+              subPath: iam.public_key
             - name: svc
               mountPath: /app/data/keys/svc.private_key.p8.der
               subPath: svc.private_key
-            - name: foxford-prev
-              mountPath: /app/data/keys/foxford.20180915.iam.key.binary
-              subPath: iam.key
-            - name: netology-prev
-              mountPath: /app/data/keys/netology.20181224.iam.key.binary
-              subPath: iam.key
           resources:
             requests:
               cpu: 100m
@@ -76,18 +67,9 @@ spec:
         - name: config
           configMap:
             name: storage-config
-        - name: foxford
+        - name: iam
           secret:
-            secretName: iam.foxford-2019-02-04-pkcs8-der-credentials
-        - name: netology
-          secret:
-            secretName: iam.netology-2019-02-04-pkcs8-der-credentials
-        - name: foxford-prev
-          secret:
-            secretName: foxford-20180915-credentials
-        - name: netology-prev
-          secret:
-            secretName: netology-20181224-credentials
+            secretName: iam-pkcs8-der-credentials
         - name: svc
           secret:
             secretName: svc-pkcs8-der-credentials

@@ -1,0 +1,19 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: storage-ingress
+  annotations:
+    kubernetes.io/ingress.class: nginx
+spec:
+  rules:
+    - host: storage.svc.example.org
+      http:
+        paths:
+          - path: /
+            backend:
+              serviceName: storage-service
+              servicePort: 8080
+  tls:
+    - secretName: tls-certificates
+      hosts:
+        - storage.svc.example.org

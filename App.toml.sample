@@ -2,8 +2,8 @@ id = "storage.svc.example.org"
 
 [authn."iam.svc.example.net"]
 audience = ["usr.example.net"]
-algorithm = "HS256"
-key = "data/keys/iam.key.binary.sample"
+algorithm = "ES256"
+key = "data/keys/iam.public_key.p8.der.sample"
 
 [authz."example.net"]
 type = "http"
