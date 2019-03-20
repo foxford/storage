@@ -22,14 +22,14 @@ Subject's namespace and account label are retrieved from `aud` and `sub` claims 
 
 Possible values for `SUBJECT`:
 
-| subject                     |
-| --------------------------- |
-| ["accounts", ACCOUNT_LABEL] |
-| ["accounts", "anonymous"]   |
+subject                     |
+--------------------------- | -
+["accounts", ACCOUNT_LABEL] |
+["accounts", "anonymous"]   |
 
 Possible values for `OBJECT` and `ACTION`:
 
-| object / action                        | read | update | delete |
-| -------------------------------------- | ---- | ------ | ------ |
-| ["buckets", BUCKET, "sets", SET]       |    + |      + |      + |
-| ["buckets", BUCKET, "objects", OBJECT] |    + |      + |      + |
+object / action                        | read | update | delete
+-------------------------------------- | ---- | ------ | ------
+["buckets", BUCKET, "sets", SET]       |    + |      + |      +
+["buckets", BUCKET, "objects", OBJECT] |    + |      + |      +
