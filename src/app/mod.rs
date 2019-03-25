@@ -1,5 +1,5 @@
 use failure::format_err;
-use http::{self, StatusCode};
+use http::{Response, StatusCode};
 use log::{error, info};
 use std::collections::BTreeMap;
 use svc_authn::AccountId;
@@ -41,6 +41,9 @@ struct SignResponse {
     uri: String,
 }
 
+#[derive(Debug)]
+struct Healthz {}
+
 #[derive(Debug, Deserialize)]
 pub(crate) struct Cors {
     #[serde(deserialize_with = "crate::serde::allowed_origins")]
@@ -55,7 +58,7 @@ impl_web! {
 
     impl Object {
         #[get("/api/v1/buckets/:bucket/objects/:object")]
-        fn read(&self, bucket: String, object: String/*, _sub: Option<AccountId>*/) -> Result<http::Response<&'static str>, ()> {
+        fn read(&self, bucket: String, object: String/*, _sub: Option<AccountId>*/) -> Result<Response<&'static str>, ()> {
             // TODO: Add authorization
             redirect(&self.s3.presigned_url("GET", &bucket, &object))
         }
@@ -63,7 +66,7 @@ impl_web! {
 
     impl Set {
         #[get("/api/v1/buckets/:bucket/sets/:set/objects/:object")]
-        fn read(&self, bucket: String, set: String, object: String/*, _sub: Option<AccountId>*/) -> Result<http::Response<&'static str>, ()> {
+        fn read(&self, bucket: String, set: String, object: String/*, _sub: Option<AccountId>*/) -> Result<Response<&'static str>, ()> {
             // TODO: Add authorization
             redirect(&self.s3.presigned_url("GET", &bucket, &s3_object(&set, &object)))
         }
@@ -119,6 +122,16 @@ impl_web! {
         }
     }
 
+    impl Healthz {
+        #[get("/api/v1/healthz")]
+        fn healthz(&self) -> Result<Response<&'static str>, ()> {
+            Ok(Response::builder()
+                .status(StatusCode::OK)
+                .body("")
+                .unwrap())
+        }
+    }
+
 }
 
 fn parse_action(method: &str) -> Result<&str, failure::Error> {
@@ -135,9 +148,7 @@ fn s3_object(set: &str, object: &str) -> String {
     format!("{set}.{object}", set = set, object = object)
 }
 
-fn redirect(uri: &str) -> Result<http::Response<&'static str>, ()> {
-    use http::{Response, StatusCode};
-
+fn redirect(uri: &str) -> Result<Response<&'static str>, ()> {
     Ok(Response::builder()
         .header("location", uri)
         .status(StatusCode::SEE_OTHER)
@@ -196,6 +207,7 @@ pub(crate) fn run(s3: s3::Client) {
         authz,
         s3: s3.clone(),
     };
+    let healthz = Healthz {};
 
     let addr = "0.0.0.0:8080".parse().expect("Invalid address");
     info!("Listening on http://{}", addr);
@@ -205,6 +217,7 @@ pub(crate) fn run(s3: s3::Client) {
         .resource(object)
         .resource(set)
         .resource(sign)
+        .resource(healthz)
         .middleware(log)
         .middleware(cors)
         .run(&addr)
