@@ -11,6 +11,9 @@ uri = "https://iam.svc.example.net/authz"
 algorithm = "ES256"
 key = "data/keys/svc.private_key.p8.der.sample"
 
-[cors]
+[http]
+listener_address = "0.0.0.0:8080"
+
+[http.cors]
 allow_origins = "*"
 max_age = 86400

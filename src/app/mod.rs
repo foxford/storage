@@ -45,6 +45,12 @@ struct SignResponse {
 struct Healthz {}
 
 #[derive(Debug, Deserialize)]
+pub(crate) struct HttpConfig {
+    listener_address: String,
+    cors: Cors,
+}
+
+#[derive(Debug, Deserialize)]
 pub(crate) struct Cors {
     #[serde(deserialize_with = "crate::serde::allowed_origins")]
     #[serde(default)]
@@ -184,14 +190,14 @@ pub(crate) fn run(s3: s3::Client) {
     .collect();
 
     let cors = CorsBuilder::new()
-        .allow_origins(config.cors.allow_origins)
+        .allow_origins(config.http.cors.allow_origins)
         .allow_methods(vec![Method::GET, Method::POST])
         .allow_headers(allow_headers)
         .allow_credentials(true)
-        .max_age(config.cors.max_age)
+        .max_age(config.http.cors.max_age)
         .build();
 
-    let log = LogMiddleware::new("storage::web");
+    let log = LogMiddleware::new("storage::http");
 
     // Resources
     let s3 = S3ClientRef::new(s3);
@@ -209,9 +215,11 @@ pub(crate) fn run(s3: s3::Client) {
     };
     let healthz = Healthz {};
 
-    let addr = "0.0.0.0:8080".parse().expect("Invalid address");
-    info!("Listening on http://{}", addr);
-
+    let addr = config
+        .http
+        .listener_address
+        .parse()
+        .expect("Error parsing HTTP listener address");
     ServiceBuilder::new()
         .config(config.authn)
         .resource(object)
@@ -221,7 +229,7 @@ pub(crate) fn run(s3: s3::Client) {
         .middleware(log)
         .middleware(cors)
         .run(&addr)
-        .unwrap();
+        .expect("Error running the HTTP listener");
 }
 
 mod config;
