@@ -1,15 +1,15 @@
-apiVersion: skaffold/v1alpha3
+apiVersion: skaffold/v1beta11
 kind: Config
 build:
   artifacts:
-    - imageName: netologygroup/storage
+    - image: netologygroup/storage
       docker:
-        dockerfilePath: docker/Dockerfile
+        dockerfile: docker/Dockerfile
   tagPolicy:
     envTemplate:
-      template: "{{.IMAGE_NAME}}:{{.IMAGE_TAG}}"
+      template: '{{.IMAGE_NAME}}:{{.IMAGE_TAG}}'
   local:
-    skipPush: false
+    push: true
     useDockerCLI: true
 deploy:
   kubectl:
