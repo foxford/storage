@@ -5,7 +5,7 @@ pub(crate) struct Config {
     pub(crate) id: svc_authn::AccountId,
     pub(crate) authn: svc_authn::jose::ConfigMap,
     pub(crate) authz: svc_authz::ConfigMap,
-    pub(crate) cors: crate::app::Cors,
+    pub(crate) http: crate::app::HttpConfig,
 }
 
 pub(crate) fn load() -> Result<Config, config::ConfigError> {
