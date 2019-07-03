@@ -37,7 +37,7 @@ impl Client {
     }
 
     pub(crate) fn sign_request(&self, req: &mut SignedRequest) -> String {
-        req.generate_presigned_url(&self.credentials, &self.expires_in)
+        req.generate_presigned_url(&self.credentials, &self.expires_in, false)
     }
 
     pub(crate) fn presigned_url(self: &Self, method: &str, bucket: &str, object: &str) -> String {
