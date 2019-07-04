@@ -7,6 +7,8 @@ use tower_web::Error;
 
 use crate::s3;
 
+////////////////////////////////////////////////////////////////////////////////
+
 type S3ClientRef = ::std::sync::Arc<s3::Client>;
 
 #[derive(Debug)]
@@ -23,6 +25,7 @@ struct Set {
 struct Sign {
     application_id: AccountId,
     authz: svc_authz::ClientMap,
+    aud_estm: util::AudienceEstimator,
     s3: S3ClientRef,
 }
 
@@ -59,6 +62,8 @@ pub(crate) struct Cors {
     #[serde(default)]
     pub(crate) max_age: std::time::Duration,
 }
+
+////////////////////////////////////////////////////////////////////////////////
 
 impl_web! {
 
@@ -106,7 +111,8 @@ impl_web! {
                 // NOTE: authorize only "update" and "delete" actions
                 match zact {
                     "update" | "delete" => {
-                        self.authz.authorize(sub.audience(), &sub, zobj, zact)
+                        let audience = self.aud_estm.estimate(&body.bucket)?;
+                        self.authz.authorize(audience, &sub, zobj, zact)
                             .map_err(|err| error().status(StatusCode::FORBIDDEN).detail(&err.to_string()).build())?;
                     }
                     _ => ()
@@ -162,6 +168,8 @@ fn redirect(uri: &str) -> Result<Response<&'static str>, ()> {
         .unwrap())
 }
 
+////////////////////////////////////////////////////////////////////////////////
+
 pub(crate) fn run(s3: s3::Client) {
     use http::{header, Method};
     use std::collections::HashSet;
@@ -203,6 +211,7 @@ pub(crate) fn run(s3: s3::Client) {
     let s3 = S3ClientRef::new(s3);
 
     // Authz
+    let aud_estm = util::AudienceEstimator::new(&config.authz);
     let authz = svc_authz::ClientMap::new(&config.id, config.authz)
         .expect("Error converting authz config to clients");
 
@@ -211,6 +220,7 @@ pub(crate) fn run(s3: s3::Client) {
     let sign = Sign {
         application_id: config.id,
         authz,
+        aud_estm,
         s3: s3.clone(),
     };
     let healthz = Healthz {};
@@ -231,6 +241,8 @@ pub(crate) fn run(s3: s3::Client) {
         .run(&addr)
         .expect("Error running the HTTP listener");
 }
+
+////////////////////////////////////////////////////////////////////////////////
 
 mod config;
 mod util;
