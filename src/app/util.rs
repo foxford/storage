@@ -1,9 +1,12 @@
+use radix_trie::Trie;
 use std::collections::BTreeMap;
 use tower_web::extract::{Context, Extract, Immediate};
 use tower_web::util::BufStream;
 use tower_web::Error;
 
 use crate::s3::Client;
+
+////////////////////////////////////////////////////////////////////////////////
 
 #[derive(Debug)]
 pub(crate) struct S3SignedRequestBuilder {
@@ -98,5 +101,44 @@ impl<B: BufStream> Extract<B> for S3SignedRequestBuilder {
             }
         }
         Immediate::ok(builder)
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+#[derive(Debug)]
+pub(crate) struct AudienceEstimator {
+    inner: Trie<String, String>,
+}
+
+impl AudienceEstimator {
+    pub(crate) fn new(config: &svc_authz::ConfigMap) -> Self {
+        let mut inner = Trie::new();
+        config.iter().for_each(|(key, _val)| {
+            let rkey = key.split('.').rev().collect::<Vec<&str>>().join(".");
+            inner.insert(rkey, key.clone());
+        });
+        Self { inner }
+    }
+
+    pub(crate) fn estimate(&self, bucket: &str) -> Result<&str, Error> {
+        let unproc_error = || {
+            Error::builder()
+                .kind(
+                    "audience_estimator_error",
+                    "Error estimating an audience of the bucket",
+                )
+                .status(http::StatusCode::INTERNAL_SERVER_ERROR)
+        };
+
+        let rbucket = bucket.split('.').rev().collect::<Vec<&str>>().join(".");
+        self.inner
+            .get_ancestor_value(&rbucket)
+            .map(|aud| aud.as_ref())
+            .ok_or_else(|| {
+                unproc_error()
+                    .detail(&format!("invalid bucket = '{}'", bucket))
+                    .build()
+            })
     }
 }
