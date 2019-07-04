@@ -33,3 +33,5 @@ object / action                        | read | update | delete
 -------------------------------------- | ---- | ------ | ------
 ["buckets", BUCKET, "sets", SET]       |    + |      + |      +
 ["buckets", BUCKET, "objects", OBJECT] |    + |      + |      +
+
+Note that `BUCKET` must contain the audience of the tenant the request will be sent to. For example, for the buckets `foo.example.org` and `bar.example.org` requests will be sent to the `example.org` audience (the audience should be presented in the application configuration).
