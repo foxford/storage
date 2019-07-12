@@ -1,4 +1,5 @@
 use failure::format_err;
+use futures::{future, Future};
 use http::{Response, StatusCode};
 use log::{error, info};
 use std::collections::BTreeMap;
@@ -86,41 +87,27 @@ impl_web! {
     impl Sign {
         #[post("/api/v1/sign")]
         #[content_type("json")]
-        fn sign_route(&self, body: SignPayload, sub: AccountId) -> Result<Result<SignResponse, Error>, ()> {
-            // TODO: improve error logging
-            Ok(self.sign(body, sub).map_err(|err| { error!("{}", err); err }))
-        }
-
-        fn sign(&self, body: SignPayload, sub: AccountId) -> Result<SignResponse, Error> {
+        fn sign(&self, body: SignPayload, sub: AccountId) -> impl Future<Item = Result<SignResponse, Error>, Error = ()> {
             let error = || Error::builder().kind("sign_error", "Error signing a request");
+            let wrap_error = |err| { error!("{}", err); future::ok(Err(err)) };
 
-            let object = {
-                let (object, zobj) = match body.set {
-                    Some(ref set) => (
-                        s3_object(&set, &body.object),
-                        vec!["buckets", &body.bucket, "sets", set]
-                    ),
-                    None => (
-                        body.object.to_owned(),
-                        vec!["buckets", &body.bucket, "objects", &body.object]
-                    )
-                };
-                let zact = parse_action(&body.method)
-                    .map_err(|err| error().status(StatusCode::BAD_REQUEST).detail(&err.to_string()).build())?;
-
-                // NOTE: authorize only "update" and "delete" actions
-                match zact {
-                    "update" | "delete" => {
-                        let audience = self.aud_estm.estimate(&body.bucket)?;
-                        self.authz.authorize(audience, &sub, zobj, zact)
-                            .map_err(|err| error().status(StatusCode::FORBIDDEN).detail(&err.to_string()).build())?;
-                    }
-                    _ => ()
-                };
-
-                object
+            // Authz subject, object, and action
+            let (object, zobj) = match body.set {
+                Some(ref set) => (
+                    s3_object(&set, &body.object),
+                    vec!["buckets", &body.bucket, "sets", set]
+                ),
+                None => (
+                    body.object.to_owned(),
+                    vec!["buckets", &body.bucket, "objects", &body.object]
+                )
+            };
+            let zact = match parse_action(&body.method) {
+                Ok(val) => val,
+                Err(err) => return future::Either::A(wrap_error(error().status(StatusCode::FORBIDDEN).detail(&err.to_string()).build()))
             };
 
+            // URI builder
             let mut builder = util::S3SignedRequestBuilder::new()
                 .method(&body.method)
                 .bucket(&body.bucket)
@@ -128,9 +115,26 @@ impl_web! {
             for (key, val) in body.headers {
                 builder = builder.add_header(&key, &val);
             }
-            let uri = builder.build(&self.s3)?;
+            let uri = match builder.build(&self.s3) {
+                Ok(val) => val,
+                Err(err) => return future::Either::A(wrap_error(err))
+            };
 
-            Ok(SignResponse { uri })
+            // NOTE: authorize only "update" and "delete" actions
+            let zf =
+                match zact {
+                    "update" | "delete" => {
+                        let audience = match self.aud_estm.estimate(&body.bucket) {
+                            Ok(val) => val,
+                            Err(err) => return future::Either::A(wrap_error(err))
+                        };
+                        self.authz.authorize(audience, &sub, zobj, zact)
+                    },
+                    _ => Box::new(future::ok(Ok(())))
+                };
+            future::Either::B(zf.then(|_| {
+                future::ok(Ok(SignResponse { uri }))
+            }))
         }
     }
 
