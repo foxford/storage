@@ -7,6 +7,7 @@ use svc_authn::AccountId;
 use tower_web::Error;
 
 use crate::s3;
+use util::Subject;
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -87,7 +88,7 @@ impl_web! {
     impl Sign {
         #[post("/api/v1/sign")]
         #[content_type("json")]
-        fn sign(&self, body: SignPayload, sub: AccountId) -> impl Future<Item = Result<SignResponse, Error>, Error = ()> {
+        fn sign(&self, body: SignPayload, sub: Subject) -> impl Future<Item = Result<SignResponse, Error>, Error = ()> {
             let error = || Error::builder().kind("sign_error", "Error signing a request");
             let wrap_error = |err| { error!("{}", err); future::ok(Err(err)) };
 
