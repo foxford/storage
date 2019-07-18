@@ -179,7 +179,9 @@ mod tower_web {
 
         use super::{S3SignedRequestBuilder, Subject};
         use svc_authn::jose::ConfigMap;
-        use svc_authn::token::jws_compact::extract::extract_jws_compact;
+        use svc_authn::token::jws_compact::extract::{
+            decode_jws_compact_with_config, extract_jws_compact,
+        };
 
         impl<B: BufStream> Extract<B> for S3SignedRequestBuilder {
             type Future = Immediate<S3SignedRequestBuilder>;
@@ -204,14 +206,35 @@ mod tower_web {
                 let authn = context
                     .config::<ConfigMap>()
                     .expect("missing an authn config");
-                match context.request().headers().get(http::header::AUTHORIZATION) {
-                    Some(header) => match extract_jws_compact::<String>(&header, authn) {
+
+                let h = context.request().headers().get(http::header::AUTHORIZATION);
+                let q = url::form_urlencoded::parse(
+                    context
+                        .request()
+                        .uri()
+                        .query()
+                        .unwrap_or_else(|| "")
+                        .as_bytes(),
+                )
+                .find(|(key, _)| key == "access_token")
+                .map(|(_, val)| val);
+
+                match (h, q) {
+                    (Some(header), _) => match extract_jws_compact(header, authn) {
                         Ok(data) => Immediate::ok(data.claims.into()),
                         Err(ref err) => {
                             Immediate::err(error(&err.to_string(), StatusCode::UNAUTHORIZED))
                         }
                     },
-                    None => {
+                    (_, Some(token)) => {
+                        match decode_jws_compact_with_config::<String>(&token, authn) {
+                            Ok(data) => Immediate::ok(data.claims.into()),
+                            Err(ref err) => {
+                                Immediate::err(error(&err.to_string(), StatusCode::UNAUTHORIZED))
+                            }
+                        }
+                    }
+                    (None, None) => {
                         Immediate::err(error("missing authentication token", StatusCode::FORBIDDEN))
                     }
                 }
