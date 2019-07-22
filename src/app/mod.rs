@@ -3,6 +3,7 @@ use futures::{future, Future};
 use http::{Response, StatusCode};
 use log::{error, info};
 use std::collections::BTreeMap;
+use std::sync::Arc;
 use svc_authn::AccountId;
 use tower_web::Error;
 
@@ -15,11 +16,15 @@ type S3ClientRef = ::std::sync::Arc<s3::Client>;
 
 #[derive(Debug)]
 struct Object {
+    authz: svc_authz::ClientMap,
+    aud_estm: Arc<util::AudienceEstimator>,
     s3: S3ClientRef,
 }
 
 #[derive(Debug)]
 struct Set {
+    authz: svc_authz::ClientMap,
+    aud_estm: Arc<util::AudienceEstimator>,
     s3: S3ClientRef,
 }
 
@@ -27,7 +32,7 @@ struct Set {
 struct Sign {
     application_id: AccountId,
     authz: svc_authz::ClientMap,
-    aud_estm: util::AudienceEstimator,
+    aud_estm: Arc<util::AudienceEstimator>,
     s3: S3ClientRef,
 }
 
@@ -71,17 +76,45 @@ impl_web! {
 
     impl Object {
         #[get("/api/v1/buckets/:bucket/objects/:object")]
-        fn read(&self, bucket: String, object: String/*, _sub: Option<AccountId>*/) -> Result<Response<&'static str>, ()> {
-            // TODO: Add authorization
-            redirect(&self.s3.presigned_url("GET", &bucket, &object))
+        fn read(&self, bucket: String, object: String, sub: Subject) -> impl Future<Item = Result<Response<&'static str>, Error>, Error = ()> {
+            let wrap_error = |err| { error!("{}", err); future::ok(Err(err)) };
+
+            let zobj = vec!["buckets", &bucket, "objects", &object];
+            let zact = "read";
+
+            let resp = redirect(&self.s3.presigned_url("GET", &bucket, &object));
+            match self.aud_estm.estimate(&bucket) {
+                Ok(audience) => {
+                    future::Either::B(self.authz.authorize(audience, &sub, zobj, zact).then(|_| {
+                        future::ok(resp)
+                    }))
+                },
+                Err(err) => {
+                    future::Either::A(wrap_error(err))
+                }
+            }
         }
     }
 
     impl Set {
         #[get("/api/v1/buckets/:bucket/sets/:set/objects/:object")]
-        fn read(&self, bucket: String, set: String, object: String/*, _sub: Option<AccountId>*/) -> Result<Response<&'static str>, ()> {
-            // TODO: Add authorization
-            redirect(&self.s3.presigned_url("GET", &bucket, &s3_object(&set, &object)))
+        fn read(&self, bucket: String, set: String, object: String, sub: Subject) -> impl Future<Item = Result<Response<&'static str>, Error>, Error = ()> {
+            let wrap_error = |err| { error!("{}", err); future::ok(Err(err)) };
+
+            let zobj = vec!["buckets", &bucket, "sets", &set];
+            let zact = "read";
+
+            let resp = redirect(&self.s3.presigned_url("GET", &bucket, &s3_object(&set, &object)));
+            match self.aud_estm.estimate(&bucket) {
+                Ok(audience) => {
+                    future::Either::B(self.authz.authorize(audience, &sub, zobj, zact).then(|_| {
+                        future::ok(resp)
+                    }))
+                },
+                Err(err) => {
+                    future::Either::A(wrap_error(err))
+                }
+            }
         }
     }
 
@@ -121,21 +154,16 @@ impl_web! {
                 Err(err) => return future::Either::A(wrap_error(err))
             };
 
-            // NOTE: authorize only "update" and "delete" actions
-            let zf =
-                match zact {
-                    "update" | "delete" => {
-                        let audience = match self.aud_estm.estimate(&body.bucket) {
-                            Ok(val) => val,
-                            Err(err) => return future::Either::A(wrap_error(err))
-                        };
-                        self.authz.authorize(audience, &sub, zobj, zact)
-                    },
-                    _ => Box::new(future::ok(Ok(())))
-                };
-            future::Either::B(zf.then(|_| {
-                future::ok(Ok(SignResponse { uri }))
-            }))
+            match self.aud_estm.estimate(&body.bucket) {
+                Ok(audience) => {
+                    future::Either::B(self.authz.authorize(audience, &sub, zobj, zact).then(|_| {
+                        future::ok(Ok(SignResponse { uri }))
+                    }))
+                },
+                Err(err) => {
+                    future::Either::A(wrap_error(err))
+                }
+            }
         }
     }
 
@@ -165,7 +193,7 @@ fn s3_object(set: &str, object: &str) -> String {
     format!("{set}.{object}", set = set, object = object)
 }
 
-fn redirect(uri: &str) -> Result<Response<&'static str>, ()> {
+fn redirect(uri: &str) -> Result<Response<&'static str>, Error> {
     Ok(Response::builder()
         .header("location", uri)
         .status(StatusCode::SEE_OTHER)
@@ -216,16 +244,24 @@ pub(crate) fn run(s3: s3::Client) {
     let s3 = S3ClientRef::new(s3);
 
     // Authz
-    let aud_estm = util::AudienceEstimator::new(&config.authz);
+    let aud_estm = Arc::new(util::AudienceEstimator::new(&config.authz));
     let authz = svc_authz::ClientMap::new(&config.id, config.authz)
         .expect("Error converting authz config to clients");
 
-    let object = Object { s3: s3.clone() };
-    let set = Set { s3: s3.clone() };
+    let object = Object {
+        authz: authz.clone(),
+        aud_estm: aud_estm.clone(),
+        s3: s3.clone(),
+    };
+    let set = Set {
+        authz: authz.clone(),
+        aud_estm: aud_estm.clone(),
+        s3: s3.clone(),
+    };
     let sign = Sign {
         application_id: config.id,
-        authz,
-        aud_estm,
+        authz: authz.clone(),
+        aud_estm: aud_estm.clone(),
         s3: s3.clone(),
     };
     let healthz = Healthz {};
