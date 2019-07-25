@@ -5,6 +5,7 @@ use log::{error, info};
 use std::collections::BTreeMap;
 use std::sync::Arc;
 use svc_authn::AccountId;
+use svc_authz::cache::Cache;
 use tower_web::Error;
 
 use crate::s3;
@@ -203,7 +204,7 @@ fn redirect(uri: &str) -> Result<Response<&'static str>, Error> {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-pub(crate) fn run(s3: s3::Client) {
+pub(crate) fn run(s3: s3::Client, cache: Option<Cache>) {
     use http::{header, Method};
     use std::collections::HashSet;
     use tower_web::middleware::cors::CorsBuilder;
@@ -245,7 +246,7 @@ pub(crate) fn run(s3: s3::Client) {
 
     // Authz
     let aud_estm = Arc::new(util::AudienceEstimator::new(&config.authz));
-    let authz = svc_authz::ClientMap::new(&config.id, config.authz)
+    let authz = svc_authz::ClientMap::new(&config.id, cache, config.authz)
         .expect("Error converting authz config to clients");
 
     let object = Object {
