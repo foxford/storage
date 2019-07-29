@@ -30,7 +30,7 @@ subject                     |
 Possible values for `OBJECT` and `ACTION`:
 
 object / action                        | read | update | delete
--------------------------------------- | ---- | ------ | ------
+-------------------------------------- |----- | ------ | ------
 ["buckets", BUCKET, "sets", SET]       |    + |      + |      +
 ["buckets", BUCKET, "objects", OBJECT] |    + |      + |      +
 

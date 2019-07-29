@@ -1,6 +1,6 @@
 # Backend
 
-Currently the only supported backend is **S3-compatible** underlying storage.
+**S3-compatible** underlying storage.
 
 
 ## Data representation
