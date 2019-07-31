@@ -1,6 +1,6 @@
-**Storage** provides various APIs to access stored content
-- Both **Object and Set** are the most convenient APIs for clients. In order to receive content, clients don’t need to perform any additional steps, they just follow redirect (default behavior for clients like browsers).
-    The only difference between those two APIs is an authorization object of a request:
-    - for **Object API** each particular object within bucket and set need to be authorized
-    - for **Set API** only bucket and set need to be authorized, that allows more efficient authorization with leaser number of requests to external authorization server
-- **Sign API** is the most flexible API. A client receives a signed URI in payload of a response, then it's the responsibility of the client to retrieve content by using the obtained URI. Sign API may also be used to perform update and delete actions along with read action. Note that the signed URI has expiration time.
+# API
+
+- **Set and Tag APIs** are convenient way to retrieve content, clients don’t need to perform any additional steps, they just follow redirect (default behavior for clients like browsers).
+    - **Set API** is used to access content by its **location in underlying backend**.
+    - **Tag API** is used to create tags for sets and then use them to **categorize and authorize content** differently without a need of creating any copies of that content.
+- With **Sign API** clients may perform **update and delete actions** along with read action. Note that the signed URI retrieved with the API has expiration time.

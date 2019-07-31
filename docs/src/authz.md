@@ -29,9 +29,10 @@ subject                     |
 
 Possible values for `OBJECT` and `ACTION`:
 
-object / action                        | read | update | delete
--------------------------------------- |----- | ------ | ------
-["buckets", BUCKET, "sets", SET]       |    + |      + |      +
-["buckets", BUCKET, "objects", OBJECT] |    + |      + |      +
+object / action                        | read | update | delete | list
+-------------------------------------- | ---- | ------ | ------ | ----
+["sets", SET]                          |    + |      + |      + | -
+["tags", TAG]                          |    + |      + |      + | -
+["tags"]                               |    - |      - |      - | +
 
-Note that `BUCKET` must contain the audience of the tenant the request will be sent to. For example, for the buckets `foo.example.org` and `bar.example.org` requests will be sent to the `example.org` audience (the audience should be presented in the application configuration).
+Note that `SET` and `TAG` must contain the audience of the tenant the request will be sent to. For example, for the sets `data.example.org:foo` and `data.example.org:foo` requests will be sent to the `example.org` audience (the audience should be presented in the application configuration).

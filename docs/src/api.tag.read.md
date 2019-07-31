@@ -1,21 +1,19 @@
-# Object
+# Read
 
-## Read
-
-Retrieve an object using its bucket and object names (through redirect to underlying storage).
+Retrieve the first object with specified tag and name (through redirect to underlying storage).
 
 **URI**
 
 ```
-GET /buckets/${BUCKET}/objects/${OBJECT}
+GET /tags/${TAG}/objects/${OBJECT}
 ```
 
 **URI parameters**
 
 Name   | Type   | Default    | Description
 ------ | ------ | ---------- | ------------------
-BUCKET | string | _required_ | Name of the bucket.
-OBJECT | string | _required_ | Name of the object.
+TAG    | Tag    | _required_ | Alias, group, or category of the set.
+OBJECT | String | _required_ | Name of the object.
 
 **Response**
 
@@ -25,6 +23,6 @@ Redirect to the object URI in the underlying storage (`303 "See Other"` status c
 
 ```bash
 curl -fsSL \
-    -XGET ${ENDPOINT}/buckets/example.org/objects/foo.bar \
+    -XGET ${ENDPOINT}/tags/ref.example.org:foo/objects/bar \
     -H "authorization: Bearer ${ACCESS_TOKEN}"
 ```
