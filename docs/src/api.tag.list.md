@@ -22,14 +22,34 @@ limit    | Int    |         25 | Limits the number of objects in the response.
 
 If successful, the response contains a list of `Tag` objects.
 
-**Example**
+**Example - A**
+
+It shows how to query all the content within particular **webinar id** and that **created by Alice**. Results are filtered by specified tag that may be used later to access any object of the tagged set.
 
 ```bash
 curl -fsSL \
-    -XGET ${ENDPOINT}/tags?filter=ref.example.org&include=group.example.org:a,group.example.org:b&exclude=group.example.org:c \
+    -XGET ${ENDPOINT}/tags?filter=id.example.org&include=author.example.org:alice,webinar.example.org:1 \
     -H "authorization: Bearer ${ACCESS_TOKEN}"
 
 [
-    "ref.example.org:foo"
+    "id.example.org:1"
 ]
 ```
+
+![Query 1](data/storage-tags-query.1.png)
+
+**Example - B**
+
+It shows how to query all the content within particular **webinar id** and that **wasn't created by Bob**. Results are filtered by specified tag that may be used later to access any object of the tagged set.
+
+```bash
+curl -fsSL \
+    -XGET ${ENDPOINT}/tags?filter=id.example.org&include=webinar.example.org:1&exclude=author.example.org:bob \
+    -H "authorization: Bearer ${ACCESS_TOKEN}"
+
+[
+    "id.example.org:1"
+]
+```
+
+![Query 1](data/storage-tags-query.2.png)
