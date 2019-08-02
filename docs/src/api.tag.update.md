@@ -5,7 +5,7 @@ Update the tag for the specified set.
 **URI**
 
 ```
-PUT /tags/TAG
+PUT /tags/${TAG}
 ```
 
 **URI parameters**
