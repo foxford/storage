@@ -4,6 +4,7 @@ use std::collections::BTreeMap;
 use std::ops::Deref;
 use svc_authn::{AccountId, Authenticable};
 
+use crate::db::{Bucket, Set};
 use crate::s3::Client;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -122,6 +123,36 @@ impl AudienceEstimator {
                     .detail(&format!("invalid bucket = '{}'", bucket))
                     .build()
             })
+    }
+
+    pub(crate) fn parse_bucket(&self, value: &str) -> Result<Bucket, Error> {
+        self.estimate(value)
+            .map(|audience| Bucket::new(Self::bucket_label(value, audience), audience))
+    }
+
+    pub(crate) fn parse_set(&self, value: &str) -> Result<Set, Error> {
+        let unproc_error = || {
+            Error::builder()
+                .kind("audience_estimator_parsing_error", "Error parsing a set")
+                .status(http::StatusCode::INTERNAL_SERVER_ERROR)
+        };
+
+        let parts: Vec<&str> = value.split(':').collect();
+        if parts.len() < 2 {
+            return Err(unproc_error().detail(&format!("set = '{}'", value)).build());
+        }
+
+        let bucket_value = parts[0];
+        let label = parts[1];
+        self.estimate(bucket_value).map(|audience| {
+            let bucket = Bucket::new(Self::bucket_label(bucket_value, audience), audience);
+            Set::new(label, bucket)
+        })
+    }
+
+    fn bucket_label<'a>(bucket: &'a str, audience: &str) -> &'a str {
+        let (val, _) = bucket.split_at(bucket.len() - (audience.len() + 1));
+        val
     }
 }
 
