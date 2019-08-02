@@ -12,7 +12,7 @@ In order to authorize an **action** performed by a **subject** to an **object**,
     },
     "object": {
         "namespace": "storage.example.org",
-        "value": ["buckets", "foo", "sets", "bar"]
+        "value": ["sets", "data.example.org:foo"]
     },
     "action": "read"
 }
@@ -35,4 +35,4 @@ object / action                        | read | update | delete | list
 ["tags", TAG]                          |    + |      + |      + | -
 ["tags"]                               |    - |      - |      - | +
 
-Note that `SET` and `TAG` must contain the audience of the tenant the request will be sent to. For example, for the sets `data.example.org:foo` and `data.example.org:foo` requests will be sent to the `example.org` audience (the audience should be presented in the application configuration).
+Note that `SET` and `TAG` must contain the audience of the tenant the request will be sent to. For example, for the sets `data.example.org:foo` and `data.example.org:bar` requests will be sent to the `example.org` audience (the audience should be presented in the application configuration).
