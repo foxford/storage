@@ -1,0 +1,1 @@
+drop table if exists set_tag cascade;
