@@ -39,7 +39,7 @@ struct TagState {
     authz: svc_authz::ClientMap,
     aud_estm: Arc<util::AudienceEstimator>,
     s3: S3ClientRef,
-    db: ConnectionPool,
+    db: Option<ConnectionPool>,
 }
 
 #[derive(Debug, Extract)]
@@ -165,7 +165,10 @@ impl_web! {
             let zobj = vec!["tags", &tag];
             let zact = "read";
             let s3 = self.s3.clone();
-            let db = self.db.clone();
+            let db = match self.db.clone() {
+                Some(val) => val,
+                None => return future::Either::A(wrap_error(error().status(StatusCode::UNPROCESSABLE_ENTITY).detail("Tag API is disabled").build()))
+            };
 
             match self.aud_estm.parse_set(&tag) {
                 Ok(tag_s) => {
@@ -199,7 +202,10 @@ impl_web! {
 
             let zobj = vec!["tags", &tag];
             let zact = "update";
-            let db = self.db.clone();
+            let db = match self.db.clone() {
+                Some(val) => val,
+                None => return future::Either::A(wrap_error(error().status(StatusCode::UNPROCESSABLE_ENTITY).detail("Tag API is disabled").build()))
+            };
 
             match (self.aud_estm.parse_set(&body.set), self.aud_estm.parse_set(&tag)) {
                 (Ok(set_s), Ok(tag_s)) => {
@@ -228,7 +234,10 @@ impl_web! {
 
             let zobj = vec!["tags", &tag];
             let zact = "delete";
-            let db = self.db.clone();
+            let db = match self.db.clone() {
+                Some(val) => val,
+                None => return future::Either::A(wrap_error(error().status(StatusCode::UNPROCESSABLE_ENTITY).detail("Tag API is disabled").build()))
+            };
 
             match self.aud_estm.parse_set(&tag) {
                 Ok(tag_s) => {
@@ -275,7 +284,10 @@ impl_web! {
 
             let zobj = vec!["tags"];
             let zact = "list";
-            let db = self.db.clone();
+            let db = match self.db.clone() {
+                Some(val) => val,
+                None => return future::Either::A(wrap_error(error().status(StatusCode::UNPROCESSABLE_ENTITY).detail("Tag API is disabled").build()))
+            };
 
             match self.aud_estm.parse_bucket(&query_string.filter) {
                 Ok(filter_b) => {
@@ -439,7 +451,7 @@ fn wrap_error<T>(err: Error) -> impl Future<Item = Result<T, Error>, Error = ()>
 
 ////////////////////////////////////////////////////////////////////////////////
 
-pub(crate) fn run(s3: s3::Client, db: &ConnectionPool, cache: Option<Cache>) {
+pub(crate) fn run(s3: s3::Client, db: Option<ConnectionPool>, cache: Option<Cache>) {
     use http::{header, Method};
     use std::collections::HashSet;
     use tower_web::middleware::cors::CorsBuilder;
