@@ -25,23 +25,24 @@ fn main() {
         ::std::time::Duration::from_secs(300),
     );
 
-    let db = {
-        let url = var("DATABASE_URL").expect("DATABASE_URL must be specified");
-        let size = var("DATABASE_POOL_SIZE")
-            .map(|val| {
-                val.parse::<u32>()
-                    .expect("Error converting DATABASE_POOL_SIZE variable into u32")
-            })
-            .unwrap_or_else(|_| 5);
-        let timeout = var("DATABASE_POOL_TIMEOUT")
-            .map(|val| {
-                val.parse::<u64>()
-                    .expect("Error converting DATABASE_POOL_TIMEOUT variable into u64")
-            })
-            .unwrap_or_else(|_| 5);
+    let db = var("DATABASE_URL")
+        .map(|url| {
+            let size = var("DATABASE_POOL_SIZE")
+                .map(|val| {
+                    val.parse::<u32>()
+                        .expect("Error converting DATABASE_POOL_SIZE variable into u32")
+                })
+                .unwrap_or_else(|_| 5);
+            let timeout = var("DATABASE_POOL_TIMEOUT")
+                .map(|val| {
+                    val.parse::<u64>()
+                        .expect("Error converting DATABASE_POOL_TIMEOUT variable into u64")
+                })
+                .unwrap_or_else(|_| 5);
 
-        crate::db::create_pool(&url, size, timeout)
-    };
+            crate::db::create_pool(&url, size, timeout)
+        })
+        .ok();
 
     let cache = var("CACHE_URL").ok().map(|url| {
         let size = var("CACHE_POOL_SIZE")
@@ -66,7 +67,7 @@ fn main() {
         Cache::new(create_pool(&url, size, timeout), expiration_time)
     });
 
-    app::run(s3, &db, cache);
+    app::run(s3, db, cache);
 }
 
 mod app;
