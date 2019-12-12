@@ -18,6 +18,7 @@ type S3ClientRef = ::std::sync::Arc<s3::Client>;
 #[derive(Debug)]
 struct Object {
     authz: svc_authz::ClientMap,
+    authz_wo: bool,
     aud_estm: Arc<util::AudienceEstimator>,
     s3: S3ClientRef,
 }
@@ -25,6 +26,7 @@ struct Object {
 #[derive(Debug)]
 struct Set {
     authz: svc_authz::ClientMap,
+    authz_wo: bool,
     aud_estm: Arc<util::AudienceEstimator>,
     s3: S3ClientRef,
 }
@@ -77,7 +79,24 @@ impl_web! {
 
     impl Object {
         #[get("/api/v1/buckets/:bucket/objects/:object")]
-        fn read(&self, bucket: String, object: String, sub: Subject) -> impl Future<Item = Result<Response<&'static str>, Error>, Error = ()> {
+        fn read(&self, bucket: String, object: String, maybe_sub: Option<Subject>) -> impl Future<Item = Result<Response<&'static str>, Error>, Error = ()> {
+            let error = || Error::builder().kind("object_error", "Error reading an object using Object API");
+            let wrap_error = |err| { error!("{}", err); future::ok(Err(err)) };
+
+            match self.authz_wo {
+                false => future::Either::A(match maybe_sub {
+                    Some(sub) => future::Either::A(self.read_authz(bucket, object, sub)),
+                    None => future::Either::B(wrap_error(error().status(StatusCode::FORBIDDEN).detail("missing an access token").build()))
+                }),
+                true => {
+                    // NOTE: ignore an authorization step if the 'AUTHZ_WRITE_ONLY' environment variable is set
+                    let resp = redirect(&self.s3.presigned_url("GET", &bucket, &object));
+                    future::Either::B(future::ok(resp))
+                }
+            }
+        }
+
+        fn read_authz(&self, bucket: String, object: String, sub: Subject) -> impl Future<Item = Result<Response<&'static str>, Error>, Error = ()> {
             let wrap_error = |err| { error!("{}", err); future::ok(Err(err)) };
 
             let zobj = vec!["buckets", &bucket, "objects", &object];
@@ -99,7 +118,24 @@ impl_web! {
 
     impl Set {
         #[get("/api/v1/buckets/:bucket/sets/:set/objects/:object")]
-        fn read(&self, bucket: String, set: String, object: String, sub: Subject) -> impl Future<Item = Result<Response<&'static str>, Error>, Error = ()> {
+        fn read(&self, bucket: String, set: String, object: String, maybe_sub: Option<Subject>) -> impl Future<Item = Result<Response<&'static str>, Error>, Error = ()> {
+            let error = || Error::builder().kind("set_error", "Error reading an object using Set API");
+            let wrap_error = |err| { error!("{}", err); future::ok(Err(err)) };
+
+            match self.authz_wo {
+                false => future::Either::A(match maybe_sub {
+                    Some(sub) => future::Either::A(self.read_authz(bucket, set, object, sub)),
+                    None => future::Either::B(wrap_error(error().status(StatusCode::FORBIDDEN).detail("missing an access token").build()))
+                }),
+                // NOTE: ignore an authorization step if the 'AUTHZ_WRITE_ONLY' environment variable is set
+                true => {
+                    let resp = redirect(&self.s3.presigned_url("GET", &bucket, &s3_object(&set, &object)));
+                    return future::Either::B(future::ok(resp))
+                }
+            }
+        }
+
+        fn read_authz(&self, bucket: String, set: String, object: String, sub: Subject) -> impl Future<Item = Result<Response<&'static str>, Error>, Error = ()> {
             let wrap_error = |err| { error!("{}", err); future::ok(Err(err)) };
 
             let zobj = vec!["buckets", &bucket, "sets", &set];
@@ -204,7 +240,7 @@ fn redirect(uri: &str) -> Result<Response<&'static str>, Error> {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-pub(crate) fn run(s3: s3::Client, cache: Option<Cache>) {
+pub(crate) fn run(s3: s3::Client, cache: Option<Cache>, authz_wo: bool) {
     use http::{header, Method};
     use std::collections::HashSet;
     use tower_web::middleware::cors::CorsBuilder;
@@ -251,11 +287,13 @@ pub(crate) fn run(s3: s3::Client, cache: Option<Cache>) {
 
     let object = Object {
         authz: authz.clone(),
+        authz_wo,
         aud_estm: aud_estm.clone(),
         s3: s3.clone(),
     };
     let set = Set {
         authz: authz.clone(),
+        authz_wo,
         aud_estm: aud_estm.clone(),
         s3: s3.clone(),
     };

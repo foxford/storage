@@ -234,9 +234,7 @@ mod tower_web {
                             }
                         }
                     }
-                    (None, None) => {
-                        Immediate::err(error("missing authentication token", StatusCode::FORBIDDEN))
-                    }
+                    (None, None) => Immediate::err(Error::missing_argument()),
                 }
             }
         }

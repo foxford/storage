@@ -43,7 +43,9 @@ fn main() {
         Cache::new(create_pool(&url, size, timeout), expiration_time)
     });
 
-    app::run(s3, cache);
+    let authz_wo = var("AUTHZ_WRITE_ONLY").ok() != None;
+
+    app::run(s3, cache, authz_wo);
 }
 
 mod app;
