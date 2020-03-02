@@ -23,6 +23,6 @@ Redirect to the object URI in the underlying storage (`303 "See Other"` status c
 
 ```bash
 curl -fsSL \
-    -XGET ${ENDPOINT}/sets/data.example.org:foo/objects/bar \
+    -XGET ${ENDPOINT}/sets/data.example.org::foo/objects/bar \
     -H "authorization: Bearer ${ACCESS_TOKEN}"
 ```

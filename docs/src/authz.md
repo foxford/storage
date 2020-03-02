@@ -8,11 +8,15 @@ In order to authorize an **action** performed by a **subject** to an **object**,
 {
     "subject": {
         "namespace": "iam.example.org",
-        "value": ["accounts", "123e4567-e89b-12d3-a456-426655440000"]
+        "value": "123e4567-e89b-12d3-a456-426655440000"
     },
     "object": {
         "namespace": "storage.example.org",
+<<<<<<< HEAD
         "value": ["buckets", "foo", "sets", "bar"]
+=======
+        "value": ["sets", "data.example.org::foo"]
+>>>>>>> e53f9c9... Change the set separator
     },
     "action": "read"
 }

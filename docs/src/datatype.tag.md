@@ -1,7 +1,7 @@
 ## Tag
 
 ```
-${TYPE}:${LABEL}
+${TYPE}::${LABEL}
 ```
 
 Name         | Type   | Default    | Description
