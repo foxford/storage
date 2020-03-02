@@ -22,6 +22,6 @@ If successful, `204 "No Content"` status code is returned in response.
 
 ```bash
 curl -fsSL \
-    -XDELETE ${ENDPOINT}/tags/ref.example.org:foo \
+    -XDELETE ${ENDPOINT}/tags/ref.example.org::foo \
     -H "authorization: Bearer ${ACCESS_TOKEN}"
 ```

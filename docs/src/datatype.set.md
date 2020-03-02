@@ -1,7 +1,7 @@
 ## Set
 
 ```
-${BUCKET}:${LABEL}
+${BUCKET}::${LABEL}
 ```
 
 Name         | Type   | Default    | Description

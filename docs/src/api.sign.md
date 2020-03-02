@@ -28,10 +28,10 @@ uri     | String | _required_ | Signed URI of the underlying storage.
 
 ```bash
 curl -fsSL \
-    -X POST "https://storage.netology-group.services/api/v1/sign" \
+    -X POST "${ENDPOINT}/sign" \
     -H "authorization: Bearer ${ACCESS_TOKEN}" \
     -H 'content-type: application/json' \
-    --data-binary '{"set": "data.example.org:foo", "object": "bar", "method": "PUT", "headers": {"content-type": "text/plain"}}'
+    --data-binary '{"set": "data.example.org::foo", "object": "bar", "method": "PUT", "headers": {"content-type": "text/plain"}}'
 
 {
   "uri": "https://s3.example.org/example.org/foo.bar?AWSAccessKeyId=7HAbGrmLzeWa4T8R&Expires=1530820731&Signature=bnIwiFU1iqlR7PdWnelPHkvjnKE%3D"

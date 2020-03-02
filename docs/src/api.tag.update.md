@@ -28,7 +28,7 @@ If successful, `204 "No Content"` status code is returned in response.
 
 ```bash
 curl -fsSL \
-    -XPUT ${ENDPOINT}/tags/ref.example.org:foo \
+    -XPUT ${ENDPOINT}/tags/ref.example.org::foo \
     -H "authorization: Bearer ${ACCESS_TOKEN}" \
     -H 'content-type: application/json' \
     --data-binary '{"set": "data.example.org:foo"}'

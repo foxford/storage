@@ -28,11 +28,11 @@ It shows how to query all the content within particular **webinar id** and that 
 
 ```bash
 curl -fsSL \
-    -XGET ${ENDPOINT}/tags?filter=id.example.org&include=author.example.org:alice,webinar.example.org:1 \
+    -XGET ${ENDPOINT}/tags?filter=id.example.org&include=author.example.org::alice,webinar.example.org::1 \
     -H "authorization: Bearer ${ACCESS_TOKEN}"
 
 [
-    "id.example.org:1"
+    "id.example.org::1"
 ]
 ```
 
@@ -44,11 +44,11 @@ It shows how to query all the content within particular **webinar id** and that 
 
 ```bash
 curl -fsSL \
-    -XGET ${ENDPOINT}/tags?filter=id.example.org&include=webinar.example.org:1&exclude=author.example.org:bob \
+    -XGET ${ENDPOINT}/tags?filter=id.example.org&include=webinar.example.org::1&exclude=author.example.org::bob \
     -H "authorization: Bearer ${ACCESS_TOKEN}"
 
 [
-    "id.example.org:1"
+    "id.example.org::1"
 ]
 ```
 

@@ -137,7 +137,7 @@ impl AudienceEstimator {
                 .status(http::StatusCode::INTERNAL_SERVER_ERROR)
         };
 
-        let parts: Vec<&str> = value.split(':').collect();
+        let parts: Vec<&str> = value.split("::").collect();
         if parts.len() < 2 {
             return Err(unproc_error().detail(&format!("set = '{}'", value)).build());
         }
