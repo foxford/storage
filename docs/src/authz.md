@@ -12,11 +12,7 @@ In order to authorize an **action** performed by a **subject** to an **object**,
     },
     "object": {
         "namespace": "storage.example.org",
-<<<<<<< HEAD
-        "value": ["buckets", "foo", "sets", "bar"]
-=======
         "value": ["sets", "data.example.org::foo"]
->>>>>>> e53f9c9... Change the set separator
     },
     "action": "read"
 }
