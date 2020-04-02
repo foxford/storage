@@ -7,18 +7,6 @@ fn main() {
     env_logger::init();
 
     use std::env::var;
-    let key = var("AWS_ACCESS_KEY_ID").expect("AWS_ACCESS_KEY_ID must be specified");
-    let secret = var("AWS_SECRET_ACCESS_KEY").expect("AWS_SECRET_ACCESS_KEY must be specified");
-    let endpoint = var("AWS_ENDPOINT").expect("AWS_ENDPOINT must be specified");
-    let region = var("AWS_REGION").expect("AWS_REGION must be specified");
-
-    let s3 = crate::s3::Client::new(
-        &key,
-        &secret,
-        &region,
-        &endpoint,
-        ::std::time::Duration::from_secs(300),
-    );
 
     let cache = var("CACHE_URL").ok().map(|url| {
         let size = var("CACHE_POOL_SIZE")
@@ -45,7 +33,7 @@ fn main() {
 
     let authz_wo = var("AUTHZ_WRITE_ONLY").ok() != None;
 
-    app::run(s3, cache, authz_wo);
+    app::run(cache, authz_wo);
 }
 
 mod app;

@@ -13,7 +13,7 @@ use util::Subject;
 
 ////////////////////////////////////////////////////////////////////////////////
 
-type S3ClientRef = ::std::sync::Arc<s3::Client>;
+type S3ClientRef = Arc<util::S3Clients>;
 
 #[derive(Debug)]
 struct Object {
@@ -80,29 +80,39 @@ impl_web! {
     impl Object {
         #[get("/api/v1/buckets/:bucket/objects/:object")]
         fn read(&self, bucket: String, object: String, maybe_sub: Option<Subject>) -> impl Future<Item = Result<Response<&'static str>, Error>, Error = ()> {
+            self.read_ns(String::from(crate::app::util::S3_DEFAULT_CLIENT), bucket, object, maybe_sub)
+        }
+
+        #[get("/api/v1/backends/:back/buckets/:bucket/objects/:object")]
+        fn read_ns(&self, back: String, bucket: String, object: String, maybe_sub: Option<Subject>) -> impl Future<Item = Result<Response<&'static str>, Error>, Error = ()> {
             let error = || Error::builder().kind("object_error", "Error reading an object using Object API");
             let wrap_error = |err| { error!("{}", err); future::ok(Err(err)) };
+            let s3 = self.s3.clone();
+            let s3 = match s3.get(&back) {
+                Some(val) => val.clone(),
+                None => return future::Either::B(wrap_error(error().status(StatusCode::NOT_FOUND).detail(&format!("Backend '{}' is not found", &back)).build()))
+            };
 
             match self.authz_wo {
                 false => future::Either::A(match maybe_sub {
-                    Some(sub) => future::Either::A(self.read_authz(bucket, object, sub)),
+                    Some(sub) => future::Either::A(self.read_authz(&s3, bucket, object, sub)),
                     None => future::Either::B(wrap_error(error().status(StatusCode::FORBIDDEN).detail("missing an access token").build()))
                 }),
                 true => {
                     // NOTE: ignore an authorization step if the 'AUTHZ_WRITE_ONLY' environment variable is set
-                    let resp = redirect(&self.s3.presigned_url("GET", &bucket, &object));
+                    let resp = redirect(&s3.presigned_url("GET", &bucket, &object));
                     future::Either::B(future::ok(resp))
                 }
             }
         }
 
-        fn read_authz(&self, bucket: String, object: String, sub: Subject) -> impl Future<Item = Result<Response<&'static str>, Error>, Error = ()> {
+        fn read_authz(&self, s3: &s3::Client, bucket: String, object: String, sub: Subject) -> impl Future<Item = Result<Response<&'static str>, Error>, Error = ()> {
             let wrap_error = |err| { error!("{}", err); future::ok(Err(err)) };
 
             let zobj = vec!["buckets", &bucket, "objects", &object];
             let zact = "read";
 
-            let resp = redirect(&self.s3.presigned_url("GET", &bucket, &object));
+            let resp = redirect(&s3.presigned_url("GET", &bucket, &object));
             match self.aud_estm.estimate(&bucket) {
                 Ok(audience) => {
                     future::Either::B(self.authz.authorize(audience, &sub, zobj, zact).then(|_| {
@@ -119,29 +129,39 @@ impl_web! {
     impl Set {
         #[get("/api/v1/buckets/:bucket/sets/:set/objects/:object")]
         fn read(&self, bucket: String, set: String, object: String, maybe_sub: Option<Subject>) -> impl Future<Item = Result<Response<&'static str>, Error>, Error = ()> {
+            self.read_ns(String::from(crate::app::util::S3_DEFAULT_CLIENT), bucket, set, object, maybe_sub)
+        }
+
+        #[get("/api/v1/backends/:back/buckets/:bucket/sets/:set/objects/:object")]
+        fn read_ns(&self, back: String, bucket: String, set: String, object: String, maybe_sub: Option<Subject>) -> impl Future<Item = Result<Response<&'static str>, Error>, Error = ()> {
             let error = || Error::builder().kind("set_error", "Error reading an object using Set API");
             let wrap_error = |err| { error!("{}", err); future::ok(Err(err)) };
+            let s3 = self.s3.clone();
+            let s3 = match s3.get(&back) {
+                Some(val) => val.clone(),
+                None => return future::Either::B(wrap_error(error().status(StatusCode::NOT_FOUND).detail(&format!("Backend '{}' is not found", &back)).build()))
+            };
 
             match self.authz_wo {
                 false => future::Either::A(match maybe_sub {
-                    Some(sub) => future::Either::A(self.read_authz(bucket, set, object, sub)),
+                    Some(sub) => future::Either::A(self.read_authz(&s3, bucket, set, object, sub)),
                     None => future::Either::B(wrap_error(error().status(StatusCode::FORBIDDEN).detail("missing an access token").build()))
                 }),
                 // NOTE: ignore an authorization step if the 'AUTHZ_WRITE_ONLY' environment variable is set
                 true => {
-                    let resp = redirect(&self.s3.presigned_url("GET", &bucket, &s3_object(&set, &object)));
+                    let resp = redirect(&s3.presigned_url("GET", &bucket, &s3_object(&set, &object)));
                     return future::Either::B(future::ok(resp))
                 }
             }
         }
 
-        fn read_authz(&self, bucket: String, set: String, object: String, sub: Subject) -> impl Future<Item = Result<Response<&'static str>, Error>, Error = ()> {
+        fn read_authz(&self, s3: &s3::Client, bucket: String, set: String, object: String, sub: Subject) -> impl Future<Item = Result<Response<&'static str>, Error>, Error = ()> {
             let wrap_error = |err| { error!("{}", err); future::ok(Err(err)) };
 
             let zobj = vec!["buckets", &bucket, "sets", &set];
             let zact = "read";
 
-            let resp = redirect(&self.s3.presigned_url("GET", &bucket, &s3_object(&set, &object)));
+            let resp = redirect(&s3.presigned_url("GET", &bucket, &s3_object(&set, &object)));
             match self.aud_estm.estimate(&bucket) {
                 Ok(audience) => {
                     future::Either::B(self.authz.authorize(audience, &sub, zobj, zact).then(|_| {
@@ -159,8 +179,19 @@ impl_web! {
         #[post("/api/v1/sign")]
         #[content_type("json")]
         fn sign(&self, body: SignPayload, sub: Subject) -> impl Future<Item = Result<SignResponse, Error>, Error = ()> {
+            self.sign_ns(String::from(crate::app::util::S3_DEFAULT_CLIENT), body, sub)
+        }
+
+        #[post("/api/v1/backends/:back/sign")]
+        #[content_type("json")]
+        fn sign_ns(&self, back: String, body: SignPayload, sub: Subject) -> impl Future<Item = Result<SignResponse, Error>, Error = ()> {
             let error = || Error::builder().kind("sign_error", "Error signing a request");
             let wrap_error = |err| { error!("{}", err); future::ok(Err(err)) };
+            let s3 = self.s3.clone();
+            let s3 = match s3.get(&back) {
+                Some(val) => val.clone(),
+                None => return future::Either::A(wrap_error(error().status(StatusCode::NOT_FOUND).detail(&format!("Backend '{}' is not found", &back)).build()))
+            };
 
             // Authz subject, object, and action
             let (object, zobj) = match body.set {
@@ -186,7 +217,7 @@ impl_web! {
             for (key, val) in body.headers {
                 builder = builder.add_header(&key, &val);
             }
-            let uri = match builder.build(&self.s3) {
+            let uri = match builder.build(&s3) {
                 Ok(val) => val,
                 Err(err) => return future::Either::A(wrap_error(err))
             };
@@ -240,7 +271,7 @@ fn redirect(uri: &str) -> Result<Response<&'static str>, Error> {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-pub(crate) fn run(s3: s3::Client, cache: Option<Cache>, authz_wo: bool) {
+pub(crate) fn run(cache: Option<Cache>, authz_wo: bool) {
     use http::{header, Method};
     use std::collections::HashSet;
     use tower_web::middleware::cors::CorsBuilder;
@@ -278,7 +309,7 @@ pub(crate) fn run(s3: s3::Client, cache: Option<Cache>, authz_wo: bool) {
     let log = LogMiddleware::new("storage::http");
 
     // Resources
-    let s3 = S3ClientRef::new(s3);
+    let s3 = S3ClientRef::new(util::read_s3_config(&config.backends));
 
     // Authz
     let aud_estm = Arc::new(util::AudienceEstimator::new(&config.authz));
@@ -325,4 +356,4 @@ pub(crate) fn run(s3: s3::Client, cache: Option<Cache>, authz_wo: bool) {
 ////////////////////////////////////////////////////////////////////////////////
 
 mod config;
-mod util;
+pub(crate) mod util;
