@@ -12,7 +12,7 @@ fi
 if [[ ! ${NAMESPACE} ]]; then echo "NAMESPACE isn't specified" 1>&2; exit 1; fi
 if [[ ! ${GITHUB_TOKEN} ]]; then echo "GITHUB_TOKEN isn't specified" 1>&2; exit 1; fi
 BRANCH="${BRANCH:-master}"
-PROJECT="storage"
+PROJECT="storage-v2"
 
 SOURCE=${SOURCE:-'https://api.github.com/repos/netology-group/environment/contents/cluster/k8s'}
 
@@ -34,7 +34,7 @@ FILE_FROM_GITHUB "deploy" "${SOURCE}/deploy/ca-${NAMESPACE}.crt"
 FILE_FROM_GITHUB "deploy" "${SOURCE}/deploy/s3-docs.sh"
 FILE_FROM_GITHUB "deploy" "${SOURCE}/deploy/travis-run.sh"
 FILE_FROM_GITHUB "deploy/k8s" "${SOURCE}/apps/${PROJECT}/ns/${NAMESPACE}/${PROJECT}.yaml"
-FILE_FROM_GITHUB "deploy/k8s" "${SOURCE}/apps/${PROJECT}/ns/_/${PROJECT}-service.yaml"
+FILE_FROM_GITHUB "deploy/k8s" "${SOURCE}/apps/${PROJECT}/ns/${NAMESPACE}/${PROJECT}-service.yaml"
 FILE_FROM_GITHUB "deploy/k8s" "${SOURCE}/apps/${PROJECT}/ns/${NAMESPACE}/${PROJECT}-config.yaml"
 FILE_FROM_GITHUB "deploy/k8s" "${SOURCE}/apps/${PROJECT}/ns/${NAMESPACE}/${PROJECT}-environment.yaml"
 FILE_FROM_GITHUB "deploy/k8s" "${SOURCE}/apps/${PROJECT}/ns/${NAMESPACE}/${PROJECT}-ingress.yaml"

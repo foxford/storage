@@ -9,6 +9,56 @@ use crate::s3::Client;
 
 ////////////////////////////////////////////////////////////////////////////////
 
+pub(crate) const S3_DEFAULT_CLIENT: &str = "default";
+pub(crate) type S3Clients = BTreeMap<String, ::std::sync::Arc<crate::s3::Client>>;
+
+////////////////////////////////////////////////////////////////////////////////
+
+pub(crate) fn read_s3_config(backends: &Vec<String>) -> S3Clients {
+    let mut acc = S3Clients::new();
+
+    if let Some(back) = backends.first() {
+        read_s3(
+            &String::from(S3_DEFAULT_CLIENT),
+            &format!("{}_", back.to_uppercase()),
+            &mut acc,
+        );
+        for back in backends {
+            read_s3(back, &format!("{}_", back.to_uppercase()), &mut acc);
+        }
+    } else {
+        read_s3(&String::from(S3_DEFAULT_CLIENT), "", &mut acc);
+    }
+
+    acc
+}
+
+fn read_s3(back: &str, prefix: &str, acc: &mut S3Clients) {
+    use std::env::var;
+    let key = var(&format!("{}AWS_ACCESS_KEY_ID", prefix))
+        .expect(&format!("{}AWS_ACCESS_KEY_ID must be specified", prefix));
+    let secret = var(&format!("{}AWS_SECRET_ACCESS_KEY", prefix)).expect(&format!(
+        "{}AWS_SECRET_ACCESS_KEY must be specified",
+        prefix
+    ));
+    let endpoint = var(&format!("{}AWS_ENDPOINT", prefix))
+        .expect(&format!("{}AWS_ENDPOINT must be specified", prefix));
+    let region = var(&format!("{}AWS_REGION", prefix))
+        .expect(&format!("{}AWS_REGION must be specified", prefix));
+
+    let client = crate::s3::Client::new(
+        &key,
+        &secret,
+        &region,
+        &endpoint,
+        ::std::time::Duration::from_secs(300),
+    );
+
+    acc.insert(back.to_owned(), ::std::sync::Arc::new(client));
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
 #[derive(Debug)]
 pub(crate) struct S3SignedRequestBuilder {
     method: Option<String>,

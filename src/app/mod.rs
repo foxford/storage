@@ -10,7 +10,6 @@ use svc_authz::cache::Cache;
 use tower_web::Error;
 
 use crate::db::{tag, ConnectionPool};
-use crate::s3;
 use util::Subject;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -19,7 +18,7 @@ const MAX_LIMIT: i64 = 25;
 
 ////////////////////////////////////////////////////////////////////////////////
 
-type S3ClientRef = ::std::sync::Arc<s3::Client>;
+type S3ClientRef = ::std::sync::Arc<util::S3Clients>;
 
 #[derive(Debug)]
 struct ObjectState {
@@ -101,9 +100,19 @@ impl_web! {
         // Backward compatibility with v1 API
         #[get("/api/v1/buckets/:bucket/objects/:object")]
         fn read_v1(&self, bucket: String, object: String, sub: Subject) -> impl Future<Item = Result<Response<&'static str>, Error>, Error = ()> {
+            self.read_v1_ns(String::from(crate::app::util::S3_DEFAULT_CLIENT), bucket, object, sub)
+        }
+
+        #[get("/api/v1/backends/:back/buckets/:bucket/objects/:object")]
+        fn read_v1_ns(&self, back: String, bucket: String, object: String, sub: Subject) -> impl Future<Item = Result<Response<&'static str>, Error>, Error = ()> {
+            let error = || Error::builder().kind("set_read_error", "Error reading an object by key");
             let zobj = vec!["buckets", &bucket, "objects", &object];
             let zact = "read";
             let s3 = self.s3.clone();
+            let s3 = match s3.get(&back) {
+                Some(val) => val.clone(),
+                None => return future::Either::A(wrap_error(error().status(StatusCode::NOT_FOUND).detail(&format!("Backend '{}' is not found", &back)).build()))
+            };
 
             match self.aud_estm.estimate(&bucket) {
                 Ok(audience) => {
@@ -121,9 +130,19 @@ impl_web! {
     impl SetState {
         #[get("/api/v2/sets/:set/objects/:object")]
         fn read(&self, set: String, object: String, sub: Subject) -> impl Future<Item = Result<Response<&'static str>, Error>, Error = ()> {
+            self.read_ns(String::from(crate::app::util::S3_DEFAULT_CLIENT), set, object, sub)
+        }
+
+        #[get("/api/v2/backends/:back/sets/:set/objects/:object")]
+        fn read_ns(&self, back: String, set: String, object: String, sub: Subject) -> impl Future<Item = Result<Response<&'static str>, Error>, Error = ()> {
+            let error = || Error::builder().kind("set_read_error", "Error reading an object by set");
             let zobj = vec!["sets", &set];
             let zact = "read";
             let s3 = self.s3.clone();
+            let s3 = match s3.get(&back) {
+                Some(val) => val.clone(),
+                None => return future::Either::A(wrap_error(error().status(StatusCode::NOT_FOUND).detail(&format!("Backend '{}' is not found", &back)).build()))
+            };
 
             match self.aud_estm.parse_set(&set) {
                 Ok(set_s) => {
@@ -140,9 +159,19 @@ impl_web! {
         // Backward compatibility with v1 API
         #[get("/api/v1/buckets/:bucket/sets/:set/objects/:object")]
         fn read_v1(&self, bucket: String, set: String, object: String, sub: Subject) -> impl Future<Item = Result<Response<&'static str>, Error>, Error = ()> {
+            self.read_v1_ns(String::from(crate::app::util::S3_DEFAULT_CLIENT), bucket, set, object, sub)
+        }
+
+        #[get("/api/v1/backends/:back/buckets/:bucket/sets/:set/objects/:object")]
+        fn read_v1_ns(&self, back: String, bucket: String, set: String, object: String, sub: Subject) -> impl Future<Item = Result<Response<&'static str>, Error>, Error = ()> {
+            let error = || Error::builder().kind("set_read_error", "Error reading an object by set");
             let zobj = vec!["buckets", &bucket, "sets", &set];
             let zact = "read";
             let s3 = self.s3.clone();
+            let s3 = match s3.get(&back) {
+                Some(val) => val.clone(),
+                None => return future::Either::A(wrap_error(error().status(StatusCode::NOT_FOUND).detail(&format!("Backend '{}' is not found", &back)).build()))
+            };
 
             match self.aud_estm.estimate(&bucket) {
                 Ok(audience) => {
@@ -160,11 +189,20 @@ impl_web! {
     impl TagState {
         #[get("/api/v2/tags/:tag/objects/:object")]
         fn read(&self, tag: String, object: String, sub: Subject) -> impl Future<Item = Result<Response<&'static str>, Error>, Error = ()> {
+            self.read_ns(String::from(crate::app::util::S3_DEFAULT_CLIENT), tag, object, sub)
+        }
+
+        #[get("/api/v2/backends/:back/tags/:tag/objects/:object")]
+        fn read_ns(&self, back: String, tag: String, object: String, sub: Subject) -> impl Future<Item = Result<Response<&'static str>, Error>, Error = ()> {
             let error = || Error::builder().kind("tag_read_error", "Error reading a tagged object");
 
             let zobj = vec!["tags", &tag];
             let zact = "read";
             let s3 = self.s3.clone();
+            let s3 = match s3.get(&back) {
+                Some(val) => val.clone(),
+                None => return future::Either::A(wrap_error(error().status(StatusCode::NOT_FOUND).detail(&format!("Backend '{}' is not found", &back)).build()))
+            };
             let db = match self.db.clone() {
                 Some(val) => val,
                 None => return future::Either::A(wrap_error(error().status(StatusCode::UNPROCESSABLE_ENTITY).detail("Tag API is disabled").build()))
@@ -322,6 +360,12 @@ impl_web! {
         #[post("/api/v2/sign")]
         #[content_type("json")]
         fn sign(&self, body: SignPayload, sub: Subject) -> impl Future<Item = Result<SignResponse, Error>, Error = ()> {
+            self.sign_ns(String::from(crate::app::util::S3_DEFAULT_CLIENT), body, sub)
+        }
+
+        #[post("/api/v2/backends/:back/sign")]
+        #[content_type("json")]
+        fn sign_ns(&self, back: String, body: SignPayload, sub: Subject) -> impl Future<Item = Result<SignResponse, Error>, Error = ()> {
             let error = || Error::builder().kind("sign_error", "Error signing a request");
 
             let zobj = vec!["sets", &body.set];
@@ -330,6 +374,10 @@ impl_web! {
                 Err(err) => return future::Either::A(wrap_error(error().status(StatusCode::FORBIDDEN).detail(&err.to_string()).build()))
             };
             let s3 = self.s3.clone();
+            let s3 = match s3.get(&back) {
+                Some(val) => val.clone(),
+                None => return future::Either::A(wrap_error(error().status(StatusCode::NOT_FOUND).detail(&format!("Backend '{}' is not found", &back)).build()))
+            };
 
             match self.aud_estm.parse_set(&body.set) {
                 Ok(set_s) => {
@@ -354,6 +402,12 @@ impl_web! {
         #[post("/api/v1/sign")]
         #[content_type("json")]
         fn sign_v1(&self, body: SignPayloadV1, sub: Subject) -> impl Future<Item = Result<SignResponse, Error>, Error = ()> {
+            self.sign_v1_ns(String::from(crate::app::util::S3_DEFAULT_CLIENT), body, sub)
+        }
+
+        #[post("/api/v1/backends/:back/sign")]
+        #[content_type("json")]
+        fn sign_v1_ns(&self, back: String, body: SignPayloadV1, sub: Subject) -> impl Future<Item = Result<SignResponse, Error>, Error = ()> {
             let error = || Error::builder().kind("sign_error", "Error signing a request");
 
             // Authz subject, object, and action
@@ -372,6 +426,10 @@ impl_web! {
                 Err(err) => return future::Either::A(wrap_error(error().status(StatusCode::FORBIDDEN).detail(&err.to_string()).build()))
             };
             let s3 = self.s3.clone();
+            let s3 = match s3.get(&back) {
+                Some(val) => val.clone(),
+                None => return future::Either::A(wrap_error(error().status(StatusCode::NOT_FOUND).detail(&format!("Backend '{}' is not found", &back)).build()))
+            };
 
             match self.aud_estm.estimate(&body.bucket) {
                 Ok(audience) => {
@@ -451,7 +509,7 @@ fn wrap_error<T>(err: Error) -> impl Future<Item = Result<T, Error>, Error = ()>
 
 ////////////////////////////////////////////////////////////////////////////////
 
-pub(crate) fn run(s3: s3::Client, db: Option<ConnectionPool>, cache: Option<Cache>) {
+pub(crate) fn run(db: Option<ConnectionPool>, cache: Option<Cache>) {
     use http::{header, Method};
     use std::collections::HashSet;
     use tower_web::middleware::cors::CorsBuilder;
@@ -489,7 +547,7 @@ pub(crate) fn run(s3: s3::Client, db: Option<ConnectionPool>, cache: Option<Cach
     let log = LogMiddleware::new("storage::http");
 
     // Resources
-    let s3 = S3ClientRef::new(s3);
+    let s3 = S3ClientRef::new(util::read_s3_config(&config.backends));
 
     // Authz
     let aud_estm = Arc::new(util::AudienceEstimator::new(&config.authz));
@@ -541,4 +599,4 @@ pub(crate) fn run(s3: s3::Client, db: Option<ConnectionPool>, cache: Option<Cach
 ////////////////////////////////////////////////////////////////////////////////
 
 mod config;
-mod util;
+pub(crate) mod util;

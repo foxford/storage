@@ -3,6 +3,8 @@ use config;
 #[derive(Debug, Deserialize)]
 pub(crate) struct Config {
     pub(crate) id: svc_authn::AccountId,
+    #[serde(default)]
+    pub(crate) backends: Vec<String>,
     pub(crate) authn: svc_authn::jose::ConfigMap,
     pub(crate) authz: svc_authz::ConfigMap,
     pub(crate) http: crate::app::HttpConfig,

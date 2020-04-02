@@ -14,8 +14,8 @@ build:
 deploy:
   kubectl:
     manifests:
-      - deploy/k8s/storage.yaml
-      - deploy/k8s/storage-config.yaml
-      - deploy/k8s/storage-environment.yaml
-      - deploy/k8s/storage-ingress.yaml
-      - deploy/k8s/storage-service.yaml
+      - deploy/k8s/storage-v2.yaml
+      - deploy/k8s/storage-v2-config.yaml
+      - deploy/k8s/storage-v2-environment.yaml
+      - deploy/k8s/storage-v2-ingress.yaml
+      - deploy/k8s/storage-v2-service.yaml
