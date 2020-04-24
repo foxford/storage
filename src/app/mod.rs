@@ -98,30 +98,38 @@ impl_web! {
                     Some(sub) => future::Either::A(self.read_authz(&s3, bucket, object, sub)),
                     None => future::Either::B(wrap_error(error().status(StatusCode::FORBIDDEN).detail("missing an access token").build()))
                 }),
-                true => {
-                    // NOTE: ignore an authorization step if the 'AUTHZ_WRITE_ONLY' environment variable is set
-                    let resp = redirect(&s3.presigned_url("GET", &bucket, &object));
-                    future::Either::B(future::ok(resp))
-                }
+                // NOTE: ignore an authorization step if the 'AUTHZ_WRITE_ONLY' environment variable is set
+                true => future::Either::B(future::ok(s3
+                    .presigned_url("GET", &bucket, &object)
+                    .map(|ref uri| redirect(uri))
+                    .map_err(|err| error()
+                        .status(StatusCode::UNPROCESSABLE_ENTITY)
+                        .detail(&err.to_string())
+                        .build())))
             }
         }
 
         fn read_authz(&self, s3: &s3::Client, bucket: String, object: String, sub: Subject) -> impl Future<Item = Result<Response<&'static str>, Error>, Error = ()> {
+            let error = || Error::builder().kind("object_error", "Error reading an object using Object API");
             let wrap_error = |err| { error!("{}", err); future::ok(Err(err)) };
 
             let zobj = vec!["buckets", &bucket, "objects", &object];
             let zact = "read";
 
-            let resp = redirect(&s3.presigned_url("GET", &bucket, &object));
+            let resp = s3
+                .presigned_url("GET", &bucket, &object)
+                .map(|ref uri| redirect(uri))
+                .map_err(|err| error()
+                    .status(StatusCode::UNPROCESSABLE_ENTITY)
+                    .detail(&err.to_string())
+                    .build());
+
             match self.aud_estm.estimate(&bucket) {
-                Ok(audience) => {
-                    future::Either::B(self.authz.authorize(audience, &sub, zobj, zact).then(|_| {
-                        future::ok(resp)
-                    }))
-                },
-                Err(err) => {
-                    future::Either::A(wrap_error(err))
-                }
+                Err(err) => future::Either::A(wrap_error(err)),
+                Ok(audience) => future::Either::B(self
+                    .authz
+                    .authorize(audience, &sub, zobj, zact)
+                    .then(|_| future::ok(resp))),
             }
         }
     }
@@ -148,29 +156,37 @@ impl_web! {
                     None => future::Either::B(wrap_error(error().status(StatusCode::FORBIDDEN).detail("missing an access token").build()))
                 }),
                 // NOTE: ignore an authorization step if the 'AUTHZ_WRITE_ONLY' environment variable is set
-                true => {
-                    let resp = redirect(&s3.presigned_url("GET", &bucket, &s3_object(&set, &object)));
-                    return future::Either::B(future::ok(resp))
-                }
+                true => future::Either::B(future::ok(s3
+                    .presigned_url("GET", &bucket, &s3_object(&set, &object))
+                    .map(|ref uri| redirect(uri))
+                    .map_err(|err| error()
+                        .status(StatusCode::UNPROCESSABLE_ENTITY)
+                        .detail(&err.to_string())
+                        .build()))),
             }
         }
 
         fn read_authz(&self, s3: &s3::Client, bucket: String, set: String, object: String, sub: Subject) -> impl Future<Item = Result<Response<&'static str>, Error>, Error = ()> {
+            let error = || Error::builder().kind("set_error", "Error reading an object using Set API");
             let wrap_error = |err| { error!("{}", err); future::ok(Err(err)) };
 
             let zobj = vec!["buckets", &bucket, "sets", &set];
             let zact = "read";
 
-            let resp = redirect(&s3.presigned_url("GET", &bucket, &s3_object(&set, &object)));
+            let resp = s3
+                .presigned_url("GET", &bucket, &s3_object(&set, &object))
+                .map(|ref uri| redirect(uri))
+                .map_err(|err| error()
+                    .status(StatusCode::UNPROCESSABLE_ENTITY)
+                    .detail(&err.to_string())
+                    .build());
+
             match self.aud_estm.estimate(&bucket) {
-                Ok(audience) => {
-                    future::Either::B(self.authz.authorize(audience, &sub, zobj, zact).then(|_| {
-                        future::ok(resp)
-                    }))
-                },
-                Err(err) => {
-                    future::Either::A(wrap_error(err))
-                }
+                Err(err) => future::Either::A(wrap_error(err)),
+                Ok(audience) => future::Either::B(self
+                    .authz
+                    .authorize(audience, &sub, zobj, zact)
+                    .then(|_| future::ok(resp))),
             }
         }
     }
@@ -214,9 +230,11 @@ impl_web! {
                 .method(&body.method)
                 .bucket(&body.bucket)
                 .object(&object);
+
             for (key, val) in body.headers {
                 builder = builder.add_header(&key, &val);
             }
+
             let uri = match builder.build(&s3) {
                 Ok(val) => val,
                 Err(err) => return future::Either::A(wrap_error(err))
@@ -261,12 +279,12 @@ fn s3_object(set: &str, object: &str) -> String {
     format!("{set}.{object}", set = set, object = object)
 }
 
-fn redirect(uri: &str) -> Result<Response<&'static str>, Error> {
-    Ok(Response::builder()
+fn redirect(uri: &str) -> Response<&'static str> {
+    Response::builder()
         .header("location", uri)
         .status(StatusCode::SEE_OTHER)
         .body("")
-        .unwrap())
+        .unwrap()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -309,7 +327,12 @@ pub(crate) fn run(cache: Option<Cache>, authz_wo: bool) {
     let log = LogMiddleware::new("storage::http");
 
     // Resources
-    let s3 = S3ClientRef::new(util::read_s3_config(&config.backends));
+    let default_backend = config.default_backend.as_ref().map(String::as_ref);
+
+    let s3_clients =
+        util::read_s3_config(&config.backends, default_backend).expect("Error reading s3 config");
+
+    let s3 = S3ClientRef::new(s3_clients);
 
     // Authz
     let aud_estm = Arc::new(util::AudienceEstimator::new(&config.authz));
