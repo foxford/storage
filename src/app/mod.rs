@@ -116,9 +116,18 @@ impl_web! {
 
             match self.aud_estm.estimate(&bucket) {
                 Ok(audience) => {
-                    future::Either::B(self.authz.authorize(audience, &sub, zobj, zact).then(move |_| {
-                        future::ok(redirect(&s3.presigned_url("GET", &bucket, &object)))
-                    }))
+                    future::Either::B(self
+                        .authz
+                        .authorize(audience, &sub, zobj, zact)
+                        .then(move |_| {
+                            future::ok(s3
+                                .presigned_url("GET", &bucket, &object)
+                                .map(|ref uri| redirect(uri))
+                                .map_err(|err| error()
+                                    .status(StatusCode::UNPROCESSABLE_ENTITY)
+                                    .detail(&err.to_string())
+                                    .build()))
+                        }))
                 },
                 Err(err) => {
                     future::Either::A(wrap_error(err))
@@ -146,9 +155,21 @@ impl_web! {
 
             match self.aud_estm.parse_set(&set) {
                 Ok(set_s) => {
-                    future::Either::B(self.authz.authorize(set_s.bucket().audience(), &sub, zobj, zact).then(move |_| {
-                        future::ok(redirect(&s3.presigned_url("GET", &set_s.bucket().to_string(), &s3_object(set_s.label(), &object))))
-                    }))
+                    future::Either::B(self
+                        .authz
+                        .authorize(set_s.bucket().audience(), &sub, zobj, zact)
+                        .then(move |_| {
+                            let bucket = set_s.bucket().to_string();
+                            let object = s3_object(set_s.label(), &object);
+
+                            future::ok(s3
+                                .presigned_url("GET", &bucket, &object)
+                                .map(|ref uri| redirect(uri))
+                                .map_err(|err| error()
+                                    .status(StatusCode::UNPROCESSABLE_ENTITY)
+                                    .detail(&err.to_string())
+                                    .build()))
+                        }))
                 },
                 Err(err) => {
                     future::Either::A(wrap_error(err))
@@ -175,9 +196,18 @@ impl_web! {
 
             match self.aud_estm.estimate(&bucket) {
                 Ok(audience) => {
-                    future::Either::B(self.authz.authorize(audience, &sub, zobj, zact).then(move |_| {
-                        future::ok(redirect(&s3.presigned_url("GET", &bucket, &s3_object(&set, &object))))
-                    }))
+                    future::Either::B(self
+                        .authz
+                        .authorize(audience, &sub, zobj, zact)
+                        .then(move |_| {
+                            future::ok(s3
+                                .presigned_url("GET", &bucket, &s3_object(&set, &object))
+                                .map(|ref uri| redirect(uri))
+                                .map_err(|err| error()
+                                    .status(StatusCode::UNPROCESSABLE_ENTITY)
+                                    .detail(&err.to_string())
+                                    .build()))
+                        }))
                 },
                 Err(err) => {
                     future::Either::A(wrap_error(err))
@@ -221,8 +251,21 @@ impl_web! {
                             });
 
                         future::ok(match maybe_tag {
-                            Ok(Some(tag)) => redirect(&s3.presigned_url("GET", &tag.set().bucket().to_string(), &s3_object(tag.set().label(), &object))),
-                            Ok(None) => Err(error().status(StatusCode::NOT_FOUND).detail(&format!("the tag = '{}' is not found", &tag)).build()),
+                            Ok(Some(tag)) => {
+                                let bucket = tag.set().bucket().to_string();
+                                let object = s3_object(tag.set().label(), &object);
+
+                                s3.presigned_url("GET", &bucket, &object)
+                                    .map(|ref uri| redirect(uri))
+                                    .map_err(|err| error()
+                                        .status(StatusCode::UNPROCESSABLE_ENTITY)
+                                        .detail(&err.to_string())
+                                        .build())
+                            }
+                            Ok(None) => Err(error()
+                                .status(StatusCode::NOT_FOUND)
+                                .detail(&format!("the tag = '{}' is not found", &tag))
+                                .build()),
                             Err(err) => Err(err)
                         })
                     }))
@@ -494,12 +537,12 @@ fn s3_object(set: &str, object: &str) -> String {
     format!("{set}.{object}", set = set, object = object)
 }
 
-fn redirect(uri: &str) -> Result<Response<&'static str>, Error> {
-    Ok(Response::builder()
+fn redirect(uri: &str) -> Response<&'static str> {
+    Response::builder()
         .header("location", uri)
         .status(StatusCode::SEE_OTHER)
         .body("")
-        .unwrap())
+        .unwrap()
 }
 
 fn wrap_error<T>(err: Error) -> impl Future<Item = Result<T, Error>, Error = ()> {
@@ -547,7 +590,12 @@ pub(crate) fn run(db: Option<ConnectionPool>, cache: Option<Cache>) {
     let log = LogMiddleware::new("storage::http");
 
     // Resources
-    let s3 = S3ClientRef::new(util::read_s3_config(&config.backends));
+    let default_backend = config.default_backend.as_ref().map(String::as_ref);
+
+    let s3_clients =
+        util::read_s3_config(&config.backends, default_backend).expect("Error reading s3 config");
+
+    let s3 = S3ClientRef::new(s3_clients);
 
     // Authz
     let aud_estm = Arc::new(util::AudienceEstimator::new(&config.authz));
