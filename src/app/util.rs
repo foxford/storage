@@ -1,12 +1,9 @@
-use std::collections::HashMap;
-
 use failure::format_err;
 use radix_trie::Trie;
 use std::collections::BTreeMap;
 use std::ops::Deref;
 use svc_authn::{AccountId, Authenticable};
 
-use crate::app::config::Backend as BackendConfig;
 use crate::s3::Client;
 use crate::tower_web::Error;
 
@@ -17,40 +14,54 @@ pub(crate) type S3Clients = BTreeMap<String, ::std::sync::Arc<crate::s3::Client>
 
 ////////////////////////////////////////////////////////////////////////////////
 
-pub(crate) fn read_s3_config(
-    backends: &HashMap<String, BackendConfig>,
-    default_backend: Option<&str>,
-) -> Result<S3Clients, failure::Error> {
+#[derive(Debug, Deserialize)]
+pub(crate) struct BackendConfig {
+    default: String,
+    alt: BTreeMap<String, AltBackendConfig>,
+}
+
+#[derive(Debug, Deserialize)]
+pub(crate) struct AltBackendConfig {
+    proxy_host: Option<String>,
+}
+
+impl AltBackendConfig {
+    fn new() -> Self {
+        AltBackendConfig { proxy_host: None }
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+pub(crate) fn read_s3_config(config: Option<&BackendConfig>) -> Result<S3Clients, failure::Error> {
     let mut acc = S3Clients::new();
 
-    if let Some(back) = default_backend {
-        let config = backends
-            .get(back)
-            .ok_or_else(|| format_err!("Missing default backend"))?;
-
+    if let Some(back) = config {
         read_s3(
             &String::from(S3_DEFAULT_CLIENT),
-            &format!("{}_", back.to_uppercase()),
-            Some(config),
+            &format!("{}_", back.default.to_uppercase()),
+            back.alt
+                .get(&back.default)
+                .ok_or_else(|| format_err!("Missing default backend configuration"))?,
             &mut acc,
         );
 
-        for (back, config) in backends.iter() {
-            read_s3(
-                back,
-                &format!("{}_", back.to_uppercase()),
-                Some(config),
-                &mut acc,
-            );
+        for (back, config) in back.alt.iter() {
+            read_s3(back, &format!("{}_", back.to_uppercase()), config, &mut acc);
         }
     } else {
-        read_s3(&String::from(S3_DEFAULT_CLIENT), "", None, &mut acc);
+        read_s3(
+            &String::from(S3_DEFAULT_CLIENT),
+            "",
+            &AltBackendConfig::new(),
+            &mut acc,
+        );
     }
 
     Ok(acc)
 }
 
-fn read_s3(back: &str, prefix: &str, backend_config: Option<&BackendConfig>, acc: &mut S3Clients) {
+fn read_s3(back: &str, prefix: &str, alt: &AltBackendConfig, acc: &mut S3Clients) {
     use std::env::var;
     let key = var(&format!("{}AWS_ACCESS_KEY_ID", prefix))
         .expect(&format!("{}AWS_ACCESS_KEY_ID must be specified", prefix));
@@ -71,10 +82,8 @@ fn read_s3(back: &str, prefix: &str, backend_config: Option<&BackendConfig>, acc
         ::std::time::Duration::from_secs(300),
     );
 
-    if let Some(config) = backend_config {
-        if let Some(ref proxy_host) = config.proxy_host {
-            client.set_proxy_host(proxy_host);
-        }
+    if let Some(ref proxy_host) = alt.proxy_host {
+        client.set_proxy_host(proxy_host);
     }
 
     acc.insert(back.to_owned(), ::std::sync::Arc::new(client));
