@@ -590,10 +590,8 @@ pub(crate) fn run(db: Option<ConnectionPool>, cache: Option<Cache>) {
     let log = LogMiddleware::new("storage::http");
 
     // Resources
-    let default_backend = config.default_backend.as_ref().map(String::as_ref);
-
     let s3_clients =
-        util::read_s3_config(&config.backends, default_backend).expect("Error reading s3 config");
+        util::read_s3_config(config.backend.as_ref()).expect("Error reading s3 config");
 
     let s3 = S3ClientRef::new(s3_clients);
 
@@ -619,10 +617,10 @@ pub(crate) fn run(db: Option<ConnectionPool>, cache: Option<Cache>) {
         s3: s3.clone(),
     };
     let tag = TagState {
-        authz: authz.clone(),
-        aud_estm: aud_estm.clone(),
-        s3: s3.clone(),
-        db: db.clone(),
+        authz,
+        aud_estm,
+        s3,
+        db,
     };
     let healthz = Healthz {};
 
