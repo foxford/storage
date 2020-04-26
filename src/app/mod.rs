@@ -129,7 +129,10 @@ impl_web! {
                 Ok(audience) => future::Either::B(self
                     .authz
                     .authorize(audience, &sub, zobj, zact)
-                    .then(|_| future::ok(resp))),
+                    .and_then(move |zresp| match zresp {
+                        Err(err) => future::Either::A(wrap_error(error().status(StatusCode::FORBIDDEN).detail(&err.to_string()).build())),
+                        Ok(_) => future::Either::B(future::ok(resp)),
+                    })),
             }
         }
     }
@@ -186,7 +189,10 @@ impl_web! {
                 Ok(audience) => future::Either::B(self
                     .authz
                     .authorize(audience, &sub, zobj, zact)
-                    .then(|_| future::ok(resp))),
+                    .and_then(move |zresp| match zresp {
+                        Err(err) => future::Either::A(wrap_error(error().status(StatusCode::FORBIDDEN).detail(&err.to_string()).build())),
+                        Ok(_) => future::Either::B(future::ok(resp)),
+                    })),
             }
         }
     }
@@ -242,8 +248,9 @@ impl_web! {
 
             match self.aud_estm.estimate(&body.bucket) {
                 Ok(audience) => {
-                    future::Either::B(self.authz.authorize(audience, &sub, zobj, zact).then(|_| {
-                        future::ok(Ok(SignResponse { uri }))
+                    future::Either::B(self.authz.authorize(audience, &sub, zobj, zact).and_then(move |zresp| match zresp {
+                        Err(err) => future::Either::A(wrap_error(error().status(StatusCode::FORBIDDEN).detail(&err.to_string()).build())),
+                        Ok(_) => future::Either::B(future::ok(Ok(SignResponse { uri }))),
                     }))
                 },
                 Err(err) => {
