@@ -64,15 +64,13 @@ pub(crate) fn read_s3_config(config: Option<&BackendConfig>) -> Result<S3Clients
 fn read_s3(back: &str, prefix: &str, alt: &AltBackendConfig, acc: &mut S3Clients) {
     use std::env::var;
     let key = var(&format!("{}AWS_ACCESS_KEY_ID", prefix))
-        .expect(&format!("{}AWS_ACCESS_KEY_ID must be specified", prefix));
-    let secret = var(&format!("{}AWS_SECRET_ACCESS_KEY", prefix)).expect(&format!(
-        "{}AWS_SECRET_ACCESS_KEY must be specified",
-        prefix
-    ));
+        .unwrap_or_else(|_| panic!("{}AWS_ACCESS_KEY_ID must be specified", prefix));
+    let secret = var(&format!("{}AWS_SECRET_ACCESS_KEY", prefix))
+        .unwrap_or_else(|_| panic!("{}AWS_SECRET_ACCESS_KEY must be specified", prefix));
     let endpoint = var(&format!("{}AWS_ENDPOINT", prefix))
-        .expect(&format!("{}AWS_ENDPOINT must be specified", prefix));
+        .unwrap_or_else(|_| panic!("{}AWS_ENDPOINT must be specified", prefix));
     let region = var(&format!("{}AWS_REGION", prefix))
-        .expect(&format!("{}AWS_REGION must be specified", prefix));
+        .unwrap_or_else(|_| panic!("{}AWS_REGION must be specified", prefix));
 
     let mut client = crate::s3::Client::new(
         &key,
@@ -134,7 +132,7 @@ impl S3SignedRequestBuilder {
         let mut headers = self.headers;
         headers.insert(key.to_string(), value.to_string());
         Self {
-            headers: headers,
+            headers,
             ..self
         }
     }
