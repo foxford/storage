@@ -132,10 +132,7 @@ impl S3SignedRequestBuilder {
     pub(crate) fn add_header(self, key: &str, value: &str) -> Self {
         let mut headers = self.headers;
         headers.insert(key.to_string(), value.to_string());
-        Self {
-            headers,
-            ..self
-        }
+        Self { headers, ..self }
     }
 
     pub(crate) fn build(self, client: &Client) -> Result<String, Error> {

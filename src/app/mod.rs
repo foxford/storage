@@ -119,14 +119,16 @@ impl_web! {
                     future::Either::B(self
                         .authz
                         .authorize(audience, &sub, zobj, zact)
-                        .then(move |_| {
-                            future::ok(s3
-                                .presigned_url("GET", &bucket, &object)
-                                .map(|ref uri| redirect(uri))
-                                .map_err(|err| error()
-                                    .status(StatusCode::UNPROCESSABLE_ENTITY)
-                                    .detail(&err.to_string())
-                                    .build()))
+                        .and_then(move |zauth| match zauth {
+                            Err(err) => future::Either::A(wrap_error(error().status(StatusCode::FORBIDDEN).detail(&err.to_string()).build())),
+                            Ok(_) => future::Either::B(
+                                future::ok(s3
+                                    .presigned_url("GET", &bucket, &object)
+                                    .map(|ref uri| redirect(uri))
+                                    .map_err(|err| error()
+                                        .status(StatusCode::UNPROCESSABLE_ENTITY)
+                                        .detail(&err.to_string())
+                                        .build())))
                         }))
                 },
                 Err(err) => {
@@ -158,18 +160,20 @@ impl_web! {
                     future::Either::B(self
                         .authz
                         .authorize(set_s.bucket().audience(), &sub, zobj, zact)
-                        .then(move |_| {
-                            let bucket = set_s.bucket().to_string();
-                            let object = s3_object(set_s.label(), &object);
+                        .and_then(move |zresp| match zresp {
+                            Err(err) => future::Either::A(wrap_error(error().status(StatusCode::FORBIDDEN).detail(&err.to_string()).build())),
+                            Ok(_) => {
+                                let bucket = set_s.bucket().to_string();
+                                let object = s3_object(set_s.label(), &object);
 
-                            future::ok(s3
-                                .presigned_url("GET", &bucket, &object)
-                                .map(|ref uri| redirect(uri))
-                                .map_err(|err| error()
-                                    .status(StatusCode::UNPROCESSABLE_ENTITY)
-                                    .detail(&err.to_string())
-                                    .build()))
-                        }))
+                                future::Either::B(future::ok(s3
+                                    .presigned_url("GET", &bucket, &object)
+                                    .map(|ref uri| redirect(uri))
+                                    .map_err(|err| error()
+                                        .status(StatusCode::UNPROCESSABLE_ENTITY)
+                                        .detail(&err.to_string())
+                                        .build())))
+                        }}))
                 },
                 Err(err) => {
                     future::Either::A(wrap_error(err))
@@ -199,14 +203,17 @@ impl_web! {
                     future::Either::B(self
                         .authz
                         .authorize(audience, &sub, zobj, zact)
-                        .then(move |_| {
-                            future::ok(s3
-                                .presigned_url("GET", &bucket, &s3_object(&set, &object))
-                                .map(|ref uri| redirect(uri))
-                                .map_err(|err| error()
-                                    .status(StatusCode::UNPROCESSABLE_ENTITY)
-                                    .detail(&err.to_string())
-                                    .build()))
+                        .and_then(move |zresp| match zresp {
+                            Err(err) => future::Either::A(wrap_error(error().status(StatusCode::FORBIDDEN).detail(&err.to_string()).build())),
+                            Ok(_) =>
+                                future::Either::B(
+                                future::ok(s3
+                                    .presigned_url("GET", &bucket, &s3_object(&set, &object))
+                                    .map(|ref uri| redirect(uri))
+                                    .map_err(|err| error()
+                                        .status(StatusCode::UNPROCESSABLE_ENTITY)
+                                        .detail(&err.to_string())
+                                        .build())))
                         }))
                 },
                 Err(err) => {
@@ -240,34 +247,37 @@ impl_web! {
 
             match self.aud_estm.parse_set(&tag) {
                 Ok(tag_s) => {
-                    future::Either::B(self.authz.authorize(tag_s.bucket().audience(), &sub, zobj, zact).then(move |_| {
-                        let maybe_tag = db.get()
-                            .map_err(|_| error().status(StatusCode::UNPROCESSABLE_ENTITY).detail("db connection is unavailable").build())
-                            .and_then(|conn| {
-                                 tag::FindQuery::new()
-                                    .tag(&tag_s)
-                                    .execute(&conn)
-                                    .map_err(|err| error().status(StatusCode::UNPROCESSABLE_ENTITY).detail(&err.to_string()).build())
-                            });
+                    future::Either::B(self.authz.authorize(tag_s.bucket().audience(), &sub, zobj, zact).and_then(move |zresp| match zresp {
+                        Err(err) => future::Either::A(wrap_error(error().status(StatusCode::FORBIDDEN).detail(&err.to_string()).build())),
+                        Ok(_) => {
+                            let maybe_tag = db.get()
+                                .map_err(|_| error().status(StatusCode::UNPROCESSABLE_ENTITY).detail("db connection is unavailable").build())
+                                .and_then(|conn| {
+                                    tag::FindQuery::new()
+                                        .tag(&tag_s)
+                                        .execute(&conn)
+                                        .map_err(|err| error().status(StatusCode::UNPROCESSABLE_ENTITY).detail(&err.to_string()).build())
+                                });
 
-                        future::ok(match maybe_tag {
-                            Ok(Some(tag)) => {
-                                let bucket = tag.set().bucket().to_string();
-                                let object = s3_object(tag.set().label(), &object);
+                            future::Either::B(future::ok(match maybe_tag {
+                                Ok(Some(tag)) => {
+                                    let bucket = tag.set().bucket().to_string();
+                                    let object = s3_object(tag.set().label(), &object);
 
-                                s3.presigned_url("GET", &bucket, &object)
-                                    .map(|ref uri| redirect(uri))
-                                    .map_err(|err| error()
-                                        .status(StatusCode::UNPROCESSABLE_ENTITY)
-                                        .detail(&err.to_string())
-                                        .build())
-                            }
-                            Ok(None) => Err(error()
-                                .status(StatusCode::NOT_FOUND)
-                                .detail(&format!("the tag = '{}' is not found", &tag))
-                                .build()),
-                            Err(err) => Err(err)
-                        })
+                                    s3.presigned_url("GET", &bucket, &object)
+                                        .map(|ref uri| redirect(uri))
+                                        .map_err(|err| error()
+                                            .status(StatusCode::UNPROCESSABLE_ENTITY)
+                                            .detail(&err.to_string())
+                                            .build())
+                                }
+                                Ok(None) => Err(error()
+                                    .status(StatusCode::NOT_FOUND)
+                                    .detail(&format!("the tag = '{}' is not found", &tag))
+                                    .build()),
+                                Err(err) => Err(err)
+                            }))
+                        }
                     }))
                 },
                 Err(err) => {
@@ -290,18 +300,20 @@ impl_web! {
 
             match (self.aud_estm.parse_set(&body.set), self.aud_estm.parse_set(&tag)) {
                 (Ok(set_s), Ok(tag_s)) => {
-                    future::Either::B(self.authz.authorize(set_s.bucket().audience(), &sub, zobj, zact).then(move |_| {
-                        let resp = db.get()
-                            .map_err(|_| error().status(StatusCode::UNPROCESSABLE_ENTITY).detail("db connection is unavailable").build())
-                            .and_then(|conn| {
-                                tag::UpdateQuery::new(&tag_s, &set_s)
-                                    .execute(&conn)
-                                    .map(|_| TagEmptyResponse{})
-                                    .map_err(|err| error().status(StatusCode::UNPROCESSABLE_ENTITY).detail(&err.to_string()).build())
-                            });
+                    future::Either::B(self.authz.authorize(set_s.bucket().audience(), &sub, zobj, zact).and_then(move |zresp| match zresp {
+                        Err(err) => future::Either::A(wrap_error(error().status(StatusCode::FORBIDDEN).detail(&err.to_string()).build())),
+                        Ok(_) => {
+                            let resp = db.get()
+                                .map_err(|_| error().status(StatusCode::UNPROCESSABLE_ENTITY).detail("db connection is unavailable").build())
+                                .and_then(|conn| {
+                                    tag::UpdateQuery::new(&tag_s, &set_s)
+                                        .execute(&conn)
+                                        .map(|_| TagEmptyResponse{})
+                                        .map_err(|err| error().status(StatusCode::UNPROCESSABLE_ENTITY).detail(&err.to_string()).build())
+                                });
 
-                        future::ok(resp)
-                    }))
+                            future::Either::B(future::ok(resp))
+                    }}))
                 },
                 (Err(err), _) => future::Either::A(wrap_error(err)),
                 (_, Err(err)) => future::Either::A(wrap_error(err))
@@ -377,20 +389,22 @@ impl_web! {
                     let offset = query_string.offset.unwrap_or_else(|| 0);
                     let limit = std::cmp::min(query_string.limit.unwrap_or_else(|| MAX_LIMIT), MAX_LIMIT);
 
-                    future::Either::B(self.authz.authorize(filter_b.audience(), &sub, zobj, zact).then(move |_| {
-                        let maybe_tags = db.get()
-                            .map_err(|_| error().status(StatusCode::UNPROCESSABLE_ENTITY).detail("db connection is unavailable").build())
-                            .and_then(|conn| {
-                                 tag::ListQuery::new(&filter_b, include, exclude, offset, limit)
-                                    .execute(&conn)
-                                    .map_err(|err| error().status(StatusCode::UNPROCESSABLE_ENTITY).detail(&err.to_string()).build())
-                            });
+                    future::Either::B(self.authz.authorize(filter_b.audience(), &sub, zobj, zact).and_then(move |zresp| match zresp {
+                        Err(err) => future::Either::A(wrap_error(error().status(StatusCode::FORBIDDEN).detail(&err.to_string()).build())),
+                        Ok(_) => {
+                            let maybe_tags = db.get()
+                                .map_err(|_| error().status(StatusCode::UNPROCESSABLE_ENTITY).detail("db connection is unavailable").build())
+                                .and_then(|conn| {
+                                    tag::ListQuery::new(&filter_b, include, exclude, offset, limit)
+                                        .execute(&conn)
+                                        .map_err(|err| error().status(StatusCode::UNPROCESSABLE_ENTITY).detail(&err.to_string()).build())
+                                });
 
-                        future::ok(match maybe_tags {
-                            Ok(tags) => Ok(tags.iter().map(ToString::to_string).collect()),
-                            Err(err) => Err(err)
-                        })
-                    }))
+                            future::Either::B(future::ok(match maybe_tags {
+                                Ok(tags) => Ok(tags.iter().map(ToString::to_string).collect()),
+                                Err(err) => Err(err)
+                            }))
+                    }}))
                 },
                 Err(err) => {
                     future::Either::A(wrap_error(err))
@@ -424,18 +438,20 @@ impl_web! {
 
             match self.aud_estm.parse_set(&body.set) {
                 Ok(set_s) => {
-                    future::Either::B(self.authz.authorize(set_s.bucket().audience(), &sub, zobj, zact).then(move |_| {
-                        // URI builder
-                        let mut builder = util::S3SignedRequestBuilder::new()
-                            .method(&body.method)
-                            .bucket(&set_s.bucket().to_string())
-                            .object(&s3_object(set_s.label(), &body.object));
-                        for (key, val) in body.headers {
-                            builder = builder.add_header(&key, &val);
-                        }
+                    future::Either::B(self.authz.authorize(set_s.bucket().audience(), &sub, zobj, zact).and_then(move |zresp| match zresp {
+                        Err(err) => future::Either::A(wrap_error(error().status(StatusCode::FORBIDDEN).detail(&err.to_string()).build())),
+                        Ok(_) => {
+                            // URI builder
+                            let mut builder = util::S3SignedRequestBuilder::new()
+                                .method(&body.method)
+                                .bucket(&set_s.bucket().to_string())
+                                .object(&s3_object(set_s.label(), &body.object));
+                            for (key, val) in body.headers {
+                                builder = builder.add_header(&key, &val);
+                            }
 
-                        future::ok(builder.build(&s3).map(|uri| SignResponse { uri }))
-                    }))
+                            future::Either::B(future::ok(builder.build(&s3).map(|uri| SignResponse { uri })))
+                    }}))
                 },
                 Err(err) => future::Either::A(wrap_error(err))
             }
@@ -476,18 +492,20 @@ impl_web! {
 
             match self.aud_estm.estimate(&body.bucket) {
                 Ok(audience) => {
-                    future::Either::B(self.authz.authorize(audience, &sub, zobj, zact).then(move |_| {
-                        // URI builder
-                        let mut builder = util::S3SignedRequestBuilder::new()
-                            .method(&body.method)
-                            .bucket(&body.bucket)
-                            .object(&object);
-                        for (key, val) in body.headers {
-                            builder = builder.add_header(&key, &val);
-                        }
+                    future::Either::B(self.authz.authorize(audience, &sub, zobj, zact).and_then(move |zresp| match zresp {
+                        Err(err) => future::Either::A(wrap_error(error().status(StatusCode::FORBIDDEN).detail(&err.to_string()).build())),
+                        Ok(_) => {
+                            // URI builder
+                            let mut builder = util::S3SignedRequestBuilder::new()
+                                .method(&body.method)
+                                .bucket(&body.bucket)
+                                .object(&object);
+                            for (key, val) in body.headers {
+                                builder = builder.add_header(&key, &val);
+                            }
 
-                        future::ok(builder.build(&s3).map(|uri| SignResponse { uri }))
-                    }))
+                            future::Either::B(future::ok(builder.build(&s3).map(|uri| SignResponse { uri })))
+                    }}))
                 },
                 Err(err) => future::Either::A(wrap_error(err))
             }
