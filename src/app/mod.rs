@@ -327,10 +327,8 @@ pub(crate) fn run(cache: Option<Cache>, authz_wo: bool) {
     let log = LogMiddleware::new("storage::http");
 
     // Resources
-    let default_backend = config.default_backend.as_ref().map(String::as_ref);
-
     let s3_clients =
-        util::read_s3_config(&config.backends, default_backend).expect("Error reading s3 config");
+        util::read_s3_config(config.backend.as_ref()).expect("Error reading s3 config");
 
     let s3 = S3ClientRef::new(s3_clients);
 
