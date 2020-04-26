@@ -1,5 +1,3 @@
-use config;
-
 #[derive(Debug, Deserialize)]
 pub(crate) struct Config {
     pub(crate) id: svc_authn::AccountId,

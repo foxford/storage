@@ -351,9 +351,9 @@ pub(crate) fn run(cache: Option<Cache>, authz_wo: bool) {
     };
     let sign = Sign {
         application_id: config.id,
-        authz: authz.clone(),
-        aud_estm: aud_estm.clone(),
-        s3: s3.clone(),
+        authz,
+        aud_estm,
+        s3,
     };
     let healthz = Healthz {};
 
