@@ -598,7 +598,7 @@ pub(crate) fn run(db: Option<ConnectionPool>, cache: Option<Cache>) {
     .collect();
 
     let cors = CorsBuilder::new()
-        .allow_origins(config.http.cors.allow_origins)
+        .allow_origins(config.http.cors.allow_origins.clone())
         .allow_methods(vec![Method::GET, Method::POST, Method::PUT, Method::DELETE])
         .allow_headers(allow_headers)
         .allow_credentials(true)
@@ -615,7 +615,7 @@ pub(crate) fn run(db: Option<ConnectionPool>, cache: Option<Cache>) {
 
     // Authz
     let aud_estm = Arc::new(util::AudienceEstimator::new(&config.authz));
-    let authz = svc_authz::ClientMap::new(&config.id, cache, config.authz)
+    let authz = svc_authz::ClientMap::new(&config.id, cache, config.authz.clone())
         .expect("Error converting authz config to clients");
 
     let object = ObjectState {
@@ -629,7 +629,7 @@ pub(crate) fn run(db: Option<ConnectionPool>, cache: Option<Cache>) {
         s3: s3.clone(),
     };
     let sign = SignState {
-        application_id: config.id,
+        application_id: config.id.clone(),
         authz: authz.clone(),
         aud_estm: aud_estm.clone(),
         s3: s3.clone(),
@@ -648,7 +648,7 @@ pub(crate) fn run(db: Option<ConnectionPool>, cache: Option<Cache>) {
         .parse()
         .expect("Error parsing HTTP listener address");
     ServiceBuilder::new()
-        .config(config.authn)
+        .config(config)
         .resource(object)
         .resource(set)
         .resource(tag)
