@@ -1,4 +1,4 @@
-use failure::format_err;
+use anyhow::format_err;
 use radix_trie::Trie;
 use std::collections::BTreeMap;
 use std::ops::Deref;
@@ -34,7 +34,7 @@ impl AltBackendConfig {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-pub(crate) fn read_s3_config(config: Option<&BackendConfig>) -> Result<S3Clients, failure::Error> {
+pub(crate) fn read_s3_config(config: Option<&BackendConfig>) -> anyhow::Result<S3Clients> {
     let mut acc = S3Clients::new();
 
     if let Some(back) = config {

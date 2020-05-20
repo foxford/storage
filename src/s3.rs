@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use failure::{format_err, Error};
+use anyhow::{Context, Result};
 use rusoto_core::credential::AwsCredentials;
 use rusoto_core::signature::SignedRequest;
 use rusoto_core::Region;
@@ -46,16 +46,15 @@ impl Client {
         SignedRequest::new(method, "s3", &self.region, &uri)
     }
 
-    pub(crate) fn sign_request(&self, req: &mut SignedRequest) -> Result<String, Error> {
+    pub(crate) fn sign_request(&self, req: &mut SignedRequest) -> Result<String> {
         let url = req.generate_presigned_url(&self.credentials, &self.expires_in, false);
 
         if let Some(ref proxy_host) = self.proxy_host {
-            let mut parsed_url = Url::parse(&url)
-                .map_err(|err| format_err!("failed to parse generated uri: {}", err))?;
+            let mut parsed_url = Url::parse(&url).context("failed to parse generated uri")?;
 
             parsed_url
                 .set_host(Some(&proxy_host))
-                .map_err(|err| format_err!("failed to set proxy backend: {}", err))?;
+                .context("failed to set proxy backend")?;
 
             Ok(parsed_url.to_string())
         } else {
@@ -68,7 +67,7 @@ impl Client {
         method: &str,
         bucket: &str,
         object: &str,
-    ) -> Result<String, Error> {
+    ) -> Result<String> {
         self.sign_request(&mut self.create_request(method, bucket, object))
     }
 }
