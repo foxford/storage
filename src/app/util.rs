@@ -287,11 +287,14 @@ mod tower_web {
         use tower_web::extract::{Context, Error, Extract, Immediate};
         use tower_web::util::BufStream;
 
-        use super::{S3SignedRequestBuilder, Subject};
-        use svc_authn::jose::ConfigMap;
         use svc_authn::token::jws_compact::extract::{
             decode_jws_compact_with_config, extract_jws_compact,
         };
+        use svc_authn::AccountId;
+
+        use crate::app::config::Config;
+
+        use super::{S3SignedRequestBuilder, Subject};
 
         impl<B: BufStream> Extract<B> for S3SignedRequestBuilder {
             type Future = Immediate<S3SignedRequestBuilder>;
@@ -313,10 +316,7 @@ mod tower_web {
             type Future = Immediate<Subject>;
 
             fn extract(context: &Context) -> Self::Future {
-                let authn = context
-                    .config::<ConfigMap>()
-                    .expect("missing an authn config");
-
+                let config = context.config::<Config>().expect("missing config");
                 let h = context.request().headers().get(http::header::AUTHORIZATION);
                 let q = url::form_urlencoded::parse(
                     context
@@ -330,14 +330,14 @@ mod tower_web {
                 .map(|(_, val)| val);
 
                 match (h, q) {
-                    (Some(header), _) => match extract_jws_compact(header, authn) {
+                    (Some(header), _) => match extract_jws_compact(header, &config.authn) {
                         Ok(data) => Immediate::ok(data.claims.into()),
                         Err(ref err) => {
                             Immediate::err(error(&err.to_string(), StatusCode::UNAUTHORIZED))
                         }
                     },
                     (_, Some(token)) => {
-                        match decode_jws_compact_with_config::<String>(&token, authn) {
+                        match decode_jws_compact_with_config::<String>(&token, &config.authn) {
                             Ok(data) => Immediate::ok(data.claims.into()),
                             Err(ref err) => {
                                 Immediate::err(error(&err.to_string(), StatusCode::UNAUTHORIZED))
@@ -345,7 +345,9 @@ mod tower_web {
                         }
                     }
                     (None, None) => {
-                        Immediate::err(error("missing authentication token", StatusCode::FORBIDDEN))
+                        let audience = config.id.audience();
+                        let anonymous = AccountId::new("anonymous", audience);
+                        Immediate::ok(Subject::new(anonymous))
                     }
                 }
             }
