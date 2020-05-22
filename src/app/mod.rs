@@ -1,4 +1,4 @@
-use failure::format_err;
+use anyhow::format_err;
 use futures::{future, Future};
 use http::{Response, StatusCode};
 use log::{error, info};
@@ -541,7 +541,7 @@ pub(crate) struct Cors {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-fn parse_action(method: &str) -> Result<&str, failure::Error> {
+fn parse_action(method: &str) -> anyhow::Result<&str> {
     match method {
         "HEAD" => Ok("read"),
         "GET" => Ok("read"),
