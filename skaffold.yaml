@@ -1,21 +1,16 @@
-apiVersion: skaffold/v1beta11
+apiVersion: skaffold/v2beta4
 kind: Config
 build:
   artifacts:
-    - image: netologygroup/storage
-      docker:
-        dockerfile: docker/Dockerfile
+  - image: netologygroup/storage
+    docker:
+      dockerfile: docker/Dockerfile
   tagPolicy:
-    envTemplate:
-      template: '{{.IMAGE_NAME}}:{{.IMAGE_TAG}}'
+    gitCommit: {}
   local:
     push: true
     useDockerCLI: true
 deploy:
-  kubectl:
-    manifests:
-      - deploy/k8s/storage-v2.yaml
-      - deploy/k8s/storage-v2-config.yaml
-      - deploy/k8s/storage-v2-environment.yaml
-      - deploy/k8s/storage-v2-ingress.yaml
-      - deploy/k8s/storage-v2-service.yaml
+  kustomize:
+    paths:
+    - deploy/k8s/overlays/ns
