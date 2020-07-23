@@ -22,10 +22,10 @@ Subject's namespace and account label are retrieved from `aud` and `sub` claims 
 
 Possible values for `SUBJECT`:
 
-subject                     |
---------------------------- | -
-["accounts", ACCOUNT_LABEL] |
-["accounts", "anonymous"]   |
+subject       |
+------------- | -
+ACCOUNT_LABEL |
+"anonymous"   |
 
 Possible values for `OBJECT` and `ACTION`:
 
