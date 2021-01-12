@@ -153,6 +153,10 @@ impl_web! {
                 None => return future::Either::B(wrap_error(error().status(StatusCode::NOT_FOUND).detail(&format!("Backend '{}' is not found", &back)).build()))
             };
 
+            if !valid_set_id(&set) {
+                return future::Either::B(wrap_error(error().status(StatusCode::FORBIDDEN).detail("Invalid set id").build()));
+            }
+
             match self.authz_wo {
                 false => future::Either::A(match maybe_sub {
                     Some(sub) => future::Either::A(self.read_authz(&s3, bucket, set, object, sub)),
@@ -214,6 +218,10 @@ impl_web! {
                 Some(val) => val.clone(),
                 None => return future::Either::A(wrap_error(error().status(StatusCode::NOT_FOUND).detail(&format!("Backend '{}' is not found", &back)).build()))
             };
+
+            if body.set.as_ref().map(|s| !valid_set_id(s)) == Some(true) {
+                return future::Either::A(wrap_error(error().status(StatusCode::FORBIDDEN).detail("Invalid set id").build()));
+            }
 
             // Authz subject, object, and action
             let (object, zobj) = match body.set {
@@ -292,6 +300,11 @@ fn redirect(uri: &str) -> Response<&'static str> {
         .status(StatusCode::SEE_OTHER)
         .body("")
         .unwrap()
+}
+
+// if set_id is not integer - this is new set and it shouldnt be available through storage v1
+fn valid_set_id(set_id: &str) -> bool {
+    set_id.parse::<u128>().is_ok()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -385,3 +398,15 @@ pub(crate) fn run(cache: Option<Cache>, authz_wo: bool) {
 
 mod config;
 pub(crate) mod util;
+
+#[cfg(test)]
+mod tests {
+    use super::valid_set_id;
+
+    #[test]
+    fn test_set_id_check() {
+        assert_eq!(valid_set_id("08286a1c-3984-4160-ae55-921780bb31ab_dump"), false);
+        assert_eq!(valid_set_id("08286a1c-3984-4160-ae55-921780bb31ab"), false);
+        assert_eq!(valid_set_id("12345"), true);
+    }
+}
