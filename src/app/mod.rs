@@ -173,6 +173,10 @@ impl_web! {
             let error = || Error::builder().kind("set_error", "Error reading an object using Set API");
             let wrap_error = |err| { error!("{}", err); future::ok(Err(err)) };
 
+            if set.parse::<u128>().is_err() {
+                return future::Either::A(wrap_error(error().status(StatusCode::FORBIDDEN).detail("Invalid set id").build()));
+            }
+
             let zobj = vec!["buckets", &bucket, "sets", &set];
             let zact = "read";
 
@@ -214,6 +218,10 @@ impl_web! {
                 Some(val) => val.clone(),
                 None => return future::Either::A(wrap_error(error().status(StatusCode::NOT_FOUND).detail(&format!("Backend '{}' is not found", &back)).build()))
             };
+
+            if body.set.as_ref().map(|s| s.parse::<u128>().is_err()).unwrap_or(false) {
+                return future::Either::A(wrap_error(error().status(StatusCode::FORBIDDEN).detail("Invalid set id").build()));
+            }
 
             // Authz subject, object, and action
             let (object, zobj) = match body.set {
