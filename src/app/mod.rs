@@ -8,6 +8,7 @@ use svc_authn::AccountId;
 use svc_authz::cache::Cache;
 use tower_web::Error;
 
+use self::config::AudienceSettings;
 use crate::s3;
 use util::Subject;
 
@@ -29,6 +30,7 @@ struct Set {
     authz_wo: bool,
     aud_estm: Arc<util::AudienceEstimator>,
     s3: S3ClientRef,
+    audiences_settings: BTreeMap<String, AudienceSettings>,
 }
 
 #[derive(Debug)]
@@ -37,6 +39,7 @@ struct Sign {
     authz: svc_authz::ClientMap,
     aud_estm: Arc<util::AudienceEstimator>,
     s3: S3ClientRef,
+    audiences_settings: BTreeMap<String, AudienceSettings>,
 }
 
 #[derive(Debug, Extract)]
@@ -139,12 +142,12 @@ impl_web! {
 
     impl Set {
         #[get("/api/v1/buckets/:bucket/sets/:set/objects/:object")]
-        fn read(&self, bucket: String, set: String, object: String, maybe_sub: Option<Subject>) -> impl Future<Item = Result<Response<&'static str>, Error>, Error = ()> {
-            self.read_ns(String::from(crate::app::util::S3_DEFAULT_CLIENT), bucket, set, object, maybe_sub)
+        fn read(&self, bucket: String, set: String, object: String, maybe_sub: Option<Subject>, referer: Option<String>) -> impl Future<Item = Result<Response<&'static str>, Error>, Error = ()> {
+            self.read_ns(String::from(crate::app::util::S3_DEFAULT_CLIENT), bucket, set, object, maybe_sub, referer)
         }
 
         #[get("/api/v1/backends/:back/buckets/:bucket/sets/:set/objects/:object")]
-        fn read_ns(&self, back: String, bucket: String, set: String, object: String, maybe_sub: Option<Subject>) -> impl Future<Item = Result<Response<&'static str>, Error>, Error = ()> {
+        fn read_ns(&self, back: String, bucket: String, set: String, object: String, maybe_sub: Option<Subject>, referer: Option<String>) -> impl Future<Item = Result<Response<&'static str>, Error>, Error = ()> {
             let error = || Error::builder().kind("set_error", "Error reading an object using Set API");
             let wrap_error = |err| { error!("{}", err); future::ok(Err(err)) };
             let s3 = self.s3.clone();
@@ -155,6 +158,10 @@ impl_web! {
 
             if !valid_set_id(&set) {
                 return future::Either::B(wrap_error(error().status(StatusCode::FORBIDDEN).detail("Invalid set id").build()));
+            }
+
+            if let Err(e) = self.valid_referer(&bucket, referer) {
+                return future::Either::B(wrap_error(e));
             }
 
             match self.authz_wo {
@@ -199,18 +206,41 @@ impl_web! {
                     })),
             }
         }
+
+        fn valid_referer(&self, bucket: &str, referer: Option<String>) -> Result<(), Error> {
+            let error = || Error::builder().kind("set_error", "Error reading an object using Set API");
+
+            match self.aud_estm.estimate(&bucket) {
+                Ok(aud) => match self.audiences_settings.get(aud) {
+                    Some(aud_settings) => if !aud_settings.valid_referer(referer.as_deref()) {
+                        let e = error().status(StatusCode::FORBIDDEN).detail("Invalid request").build();
+                        return Err(e);
+                    }
+                    None => {
+                        let e = error().status(StatusCode::NOT_FOUND).detail(&format!("Audience settings for bucket '{}' not found", &bucket)).build();
+                        return Err(e);
+                    }
+                }
+                Err(err) => {
+                    let e = error().status(StatusCode::NOT_FOUND).detail(&format!("Audience estimate for bucket '{}' not found, err = {}", &bucket, err)).build();
+                    return Err(e);
+                }
+            }
+
+            Ok(())
+        }
     }
 
     impl Sign {
         #[post("/api/v1/sign")]
         #[content_type("json")]
-        fn sign(&self, body: SignPayload, sub: Subject) -> impl Future<Item = Result<SignResponse, Error>, Error = ()> {
-            self.sign_ns(String::from(crate::app::util::S3_DEFAULT_CLIENT), body, sub)
+        fn sign(&self, body: SignPayload, sub: Subject, referer: Option<String>) -> impl Future<Item = Result<SignResponse, Error>, Error = ()> {
+            self.sign_ns(String::from(crate::app::util::S3_DEFAULT_CLIENT), body, sub, referer)
         }
 
         #[post("/api/v1/backends/:back/sign")]
         #[content_type("json")]
-        fn sign_ns(&self, back: String, body: SignPayload, sub: Subject) -> impl Future<Item = Result<SignResponse, Error>, Error = ()> {
+        fn sign_ns(&self, back: String, body: SignPayload, sub: Subject, referer: Option<String>) -> impl Future<Item = Result<SignResponse, Error>, Error = ()> {
             let error = || Error::builder().kind("sign_error", "Error signing a request");
             let wrap_error = |err| { error!("{}", err); future::ok(Err(err)) };
             let s3 = self.s3.clone();
@@ -221,6 +251,10 @@ impl_web! {
 
             if body.set.as_ref().map(|s| !valid_set_id(s)) == Some(true) {
                 return future::Either::A(wrap_error(error().status(StatusCode::FORBIDDEN).detail("Invalid set id").build()));
+            }
+
+            if let Err(e) = self.valid_referer(&body.bucket, referer) {
+                return future::Either::A(wrap_error(e));
             }
 
             // Authz subject, object, and action
@@ -265,6 +299,29 @@ impl_web! {
                     future::Either::A(wrap_error(err))
                 }
             }
+        }
+
+        fn valid_referer(&self, bucket: &str, referer: Option<String>) -> Result<(), Error> {
+            let error = || Error::builder().kind("sign_error", "Error signing a request");
+
+            match self.aud_estm.estimate(&bucket) {
+                Ok(aud) => match self.audiences_settings.get(aud) {
+                    Some(aud_settings) => if !aud_settings.valid_referer(referer.as_deref()) {
+                        let e = error().status(StatusCode::FORBIDDEN).detail("Invalid request").build();
+                        return Err(e);
+                    }
+                    None => {
+                        let e = error().status(StatusCode::NOT_FOUND).detail(&format!("Audience settings for bucket '{}' not found", &bucket)).build();
+                        return Err(e);
+                    }
+                }
+                Err(err) => {
+                    let e = error().status(StatusCode::NOT_FOUND).detail(&format!("Audience estimate for bucket '{}' not found, err = {}", &bucket, err)).build();
+                    return Err(e);
+                }
+            }
+
+            Ok(())
         }
     }
 
@@ -368,12 +425,14 @@ pub(crate) fn run(cache: Option<Cache>, authz_wo: bool) {
         authz_wo,
         aud_estm: aud_estm.clone(),
         s3: s3.clone(),
+        audiences_settings: config.audiences_settings.clone(),
     };
     let sign = Sign {
         application_id: config.id,
         authz,
         aud_estm,
         s3,
+        audiences_settings: config.audiences_settings.clone(),
     };
     let healthz = Healthz {};
 
@@ -405,7 +464,10 @@ mod tests {
 
     #[test]
     fn test_set_id_check() {
-        assert_eq!(valid_set_id("08286a1c-3984-4160-ae55-921780bb31ab_dump"), false);
+        assert_eq!(
+            valid_set_id("08286a1c-3984-4160-ae55-921780bb31ab_dump"),
+            false
+        );
         assert_eq!(valid_set_id("08286a1c-3984-4160-ae55-921780bb31ab"), false);
         assert_eq!(valid_set_id("12345"), true);
     }
