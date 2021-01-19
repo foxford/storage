@@ -9,6 +9,7 @@ use svc_authn::AccountId;
 use svc_authz::cache::Cache;
 use tower_web::Error;
 
+use self::config::AudienceSettings;
 use crate::db::{tag, ConnectionPool};
 use util::Subject;
 
@@ -25,6 +26,7 @@ struct ObjectState {
     authz: svc_authz::ClientMap,
     aud_estm: Arc<util::AudienceEstimator>,
     s3: S3ClientRef,
+    audiences_settings: BTreeMap<String, AudienceSettings>,
 }
 
 #[derive(Debug)]
@@ -32,6 +34,7 @@ struct SetState {
     authz: svc_authz::ClientMap,
     aud_estm: Arc<util::AudienceEstimator>,
     s3: S3ClientRef,
+    audiences_settings: BTreeMap<String, AudienceSettings>,
 }
 
 struct TagState {
@@ -65,6 +68,7 @@ struct SignState {
     authz: svc_authz::ClientMap,
     aud_estm: Arc<util::AudienceEstimator>,
     s3: S3ClientRef,
+    audiences_settings: BTreeMap<String, AudienceSettings>,
 }
 
 #[derive(Debug, Extract)]
@@ -99,13 +103,18 @@ impl_web! {
     impl ObjectState {
         // Backward compatibility with v1 API
         #[get("/api/v1/buckets/:bucket/objects/:object")]
-        fn read_v1(&self, bucket: String, object: String, sub: Subject) -> impl Future<Item = Result<Response<&'static str>, Error>, Error = ()> {
-            self.read_v1_ns(String::from(crate::app::util::S3_DEFAULT_CLIENT), bucket, object, sub)
+        fn read_v1(&self, bucket: String, object: String, sub: Subject, referer: Option<String>) -> impl Future<Item = Result<Response<&'static str>, Error>, Error = ()> {
+            self.read_v1_ns(String::from(crate::app::util::S3_DEFAULT_CLIENT), bucket, object, sub, referer)
         }
 
         #[get("/api/v1/backends/:back/buckets/:bucket/objects/:object")]
-        fn read_v1_ns(&self, back: String, bucket: String, object: String, sub: Subject) -> impl Future<Item = Result<Response<&'static str>, Error>, Error = ()> {
+        fn read_v1_ns(&self, back: String, bucket: String, object: String, sub: Subject,  referer: Option<String>) -> impl Future<Item = Result<Response<&'static str>, Error>, Error = ()> {
             let error = || Error::builder().kind("set_read_error", "Error reading an object by key");
+
+            if let Err(e) = self.valid_referer(&bucket, referer) {
+                return future::Either::A(wrap_error(e));
+            }
+
             let zobj = vec!["buckets", &bucket, "objects", &object];
             let zact = "read";
             let s3 = self.s3.clone();
@@ -136,17 +145,42 @@ impl_web! {
                 }
             }
         }
+
+        fn valid_referer(&self, bucket: &str, referer: Option<String>) -> Result<(), Error> {
+            let error = || Error::builder().kind("set_read_error", "Error reading an object by key");
+
+            match self.aud_estm.estimate(&bucket) {
+                Ok(aud) => match self.audiences_settings.get(aud) {
+                    Some(aud_settings) => if !aud_settings.valid_referer(referer.as_deref()) {
+                        let e = error().status(StatusCode::FORBIDDEN).detail("Invalid request").build();
+                        return Err(e);
+                    }
+                    None => {
+                        let e = error().status(StatusCode::NOT_FOUND).detail(&format!("Audience settings for bucket '{}' not found", &bucket)).build();
+                        return Err(e);
+                    }
+                }
+                Err(err) => {
+                    let e = error().status(StatusCode::NOT_FOUND).detail(&format!("Audience estimate for bucket '{}' not found, err = {}", &bucket, err)).build();
+                    return Err(e);
+                }
+            }
+
+            Ok(())
+        }
+
     }
 
     impl SetState {
         #[get("/api/v2/sets/:set/objects/:object")]
-        fn read(&self, set: String, object: String, sub: Subject) -> impl Future<Item = Result<Response<&'static str>, Error>, Error = ()> {
-            self.read_ns(String::from(crate::app::util::S3_DEFAULT_CLIENT), set, object, sub)
+        fn read(&self, set: String, object: String, sub: Subject, referer: Option<String>) -> impl Future<Item = Result<Response<&'static str>, Error>, Error = ()> {
+            self.read_ns(String::from(crate::app::util::S3_DEFAULT_CLIENT), set, object, sub, referer)
         }
 
         #[get("/api/v2/backends/:back/sets/:set/objects/:object")]
-        fn read_ns(&self, back: String, set: String, object: String, sub: Subject) -> impl Future<Item = Result<Response<&'static str>, Error>, Error = ()> {
+        fn read_ns(&self, back: String, set: String, object: String, sub: Subject, referer: Option<String>) -> impl Future<Item = Result<Response<&'static str>, Error>, Error = ()> {
             let error = || Error::builder().kind("set_read_error", "Error reading an object by set");
+
             let zobj = vec!["sets", &set];
             let zact = "read";
             let s3 = self.s3.clone();
@@ -157,6 +191,10 @@ impl_web! {
 
             match self.aud_estm.parse_set(&set) {
                 Ok(set_s) => {
+                    if let Err(e) = self.valid_referer(&set_s.bucket().to_string(), referer) {
+                        return future::Either::A(wrap_error(e));
+                    }
+
                     future::Either::B(self
                         .authz
                         .authorize(set_s.bucket().audience(), &sub, zobj, zact)
@@ -183,13 +221,18 @@ impl_web! {
 
         // Backward compatibility with v1 API
         #[get("/api/v1/buckets/:bucket/sets/:set/objects/:object")]
-        fn read_v1(&self, bucket: String, set: String, object: String, sub: Subject) -> impl Future<Item = Result<Response<&'static str>, Error>, Error = ()> {
-            self.read_v1_ns(String::from(crate::app::util::S3_DEFAULT_CLIENT), bucket, set, object, sub)
+        fn read_v1(&self, bucket: String, set: String, object: String, sub: Subject, referer: Option<String>) -> impl Future<Item = Result<Response<&'static str>, Error>, Error = ()> {
+            self.read_v1_ns(String::from(crate::app::util::S3_DEFAULT_CLIENT), bucket, set, object, sub, referer)
         }
 
         #[get("/api/v1/backends/:back/buckets/:bucket/sets/:set/objects/:object")]
-        fn read_v1_ns(&self, back: String, bucket: String, set: String, object: String, sub: Subject) -> impl Future<Item = Result<Response<&'static str>, Error>, Error = ()> {
+        fn read_v1_ns(&self, back: String, bucket: String, set: String, object: String, sub: Subject, referer: Option<String>) -> impl Future<Item = Result<Response<&'static str>, Error>, Error = ()> {
             let error = || Error::builder().kind("set_read_error", "Error reading an object by set");
+
+            if let Err(e) = self.valid_referer(&bucket, referer) {
+                return future::Either::A(wrap_error(e));
+            }
+
             let zobj = vec!["buckets", &bucket, "sets", &set];
             let zact = "read";
             let s3 = self.s3.clone();
@@ -220,6 +263,29 @@ impl_web! {
                     future::Either::A(wrap_error(err))
                 }
             }
+        }
+
+        fn valid_referer(&self, bucket: &str, referer: Option<String>) -> Result<(), Error> {
+            let error = || Error::builder().kind("set_read_error", "Error reading an object using Set API");
+
+            match self.aud_estm.estimate(&bucket) {
+                Ok(aud) => match self.audiences_settings.get(aud) {
+                    Some(aud_settings) => if !aud_settings.valid_referer(referer.as_deref()) {
+                        let e = error().status(StatusCode::FORBIDDEN).detail("Invalid request").build();
+                        return Err(e);
+                    }
+                    None => {
+                        let e = error().status(StatusCode::NOT_FOUND).detail(&format!("Audience settings for bucket '{}' not found", &bucket)).build();
+                        return Err(e);
+                    }
+                }
+                Err(err) => {
+                    let e = error().status(StatusCode::NOT_FOUND).detail(&format!("Audience estimate for bucket '{}' not found, err = {}", &bucket, err)).build();
+                    return Err(e);
+                }
+            }
+
+            Ok(())
         }
     }
 
@@ -416,14 +482,20 @@ impl_web! {
     impl SignState {
         #[post("/api/v2/sign")]
         #[content_type("json")]
-        fn sign(&self, body: SignPayload, sub: Subject) -> impl Future<Item = Result<SignResponse, Error>, Error = ()> {
-            self.sign_ns(String::from(crate::app::util::S3_DEFAULT_CLIENT), body, sub)
+        fn sign(&self, body: SignPayload, sub: Subject, referer: Option<String>) -> impl Future<Item = Result<SignResponse, Error>, Error = ()> {
+            self.sign_ns(String::from(crate::app::util::S3_DEFAULT_CLIENT), body, sub, referer)
         }
 
         #[post("/api/v2/backends/:back/sign")]
         #[content_type("json")]
-        fn sign_ns(&self, back: String, body: SignPayload, sub: Subject) -> impl Future<Item = Result<SignResponse, Error>, Error = ()> {
+        fn sign_ns(&self, back: String, body: SignPayload, sub: Subject, referer: Option<String>) -> impl Future<Item = Result<SignResponse, Error>, Error = ()> {
             let error = || Error::builder().kind("sign_error", "Error signing a request");
+
+            if let Ok(set_s) = self.aud_estm.parse_set(&body.set) {
+                if let Err(e) = self.valid_referer(&set_s.bucket().to_string(), referer) {
+                    return future::Either::A(wrap_error(e));
+                }
+            }
 
             let zobj = vec!["sets", &body.set];
             let zact = match parse_action(&body.method) {
@@ -460,14 +532,18 @@ impl_web! {
         // Backward compatibility with v1 API
         #[post("/api/v1/sign")]
         #[content_type("json")]
-        fn sign_v1(&self, body: SignPayloadV1, sub: Subject) -> impl Future<Item = Result<SignResponse, Error>, Error = ()> {
-            self.sign_v1_ns(String::from(crate::app::util::S3_DEFAULT_CLIENT), body, sub)
+        fn sign_v1(&self, body: SignPayloadV1, sub: Subject, referer: Option<String>) -> impl Future<Item = Result<SignResponse, Error>, Error = ()> {
+            self.sign_v1_ns(String::from(crate::app::util::S3_DEFAULT_CLIENT), body, sub, referer)
         }
 
         #[post("/api/v1/backends/:back/sign")]
         #[content_type("json")]
-        fn sign_v1_ns(&self, back: String, body: SignPayloadV1, sub: Subject) -> impl Future<Item = Result<SignResponse, Error>, Error = ()> {
+        fn sign_v1_ns(&self, back: String, body: SignPayloadV1, sub: Subject, referer: Option<String>) -> impl Future<Item = Result<SignResponse, Error>, Error = ()> {
             let error = || Error::builder().kind("sign_error", "Error signing a request");
+
+            if let Err(e) = self.valid_referer(&body.bucket, referer) {
+                return future::Either::A(wrap_error(e));
+            }
 
             // Authz subject, object, and action
             let (object, zobj) = match body.set {
@@ -509,6 +585,29 @@ impl_web! {
                 },
                 Err(err) => future::Either::A(wrap_error(err))
             }
+        }
+
+        fn valid_referer(&self, bucket: &str, referer: Option<String>) -> Result<(), Error> {
+            let error = || Error::builder().kind("sign_error", "Error signing a request");
+
+            match self.aud_estm.estimate(&bucket) {
+                Ok(aud) => match self.audiences_settings.get(aud) {
+                    Some(aud_settings) => if !aud_settings.valid_referer(referer.as_deref()) {
+                        let e = error().status(StatusCode::FORBIDDEN).detail("Invalid request").build();
+                        return Err(e);
+                    }
+                    None => {
+                        let e = error().status(StatusCode::NOT_FOUND).detail(&format!("Audience settings for bucket '{}' not found", &bucket)).build();
+                        return Err(e);
+                    }
+                }
+                Err(err) => {
+                    let e = error().status(StatusCode::NOT_FOUND).detail(&format!("Audience estimate for bucket '{}' not found, err = {}", &bucket, err)).build();
+                    return Err(e);
+                }
+            }
+
+            Ok(())
         }
     }
 
@@ -622,17 +721,20 @@ pub(crate) fn run(db: Option<ConnectionPool>, cache: Option<Cache>) {
         authz: authz.clone(),
         aud_estm: aud_estm.clone(),
         s3: s3.clone(),
+        audiences_settings: config.audiences_settings.clone(),
     };
     let set = SetState {
         authz: authz.clone(),
         aud_estm: aud_estm.clone(),
         s3: s3.clone(),
+        audiences_settings: config.audiences_settings.clone(),
     };
     let sign = SignState {
         application_id: config.id.clone(),
         authz: authz.clone(),
         aud_estm: aud_estm.clone(),
         s3: s3.clone(),
+        audiences_settings: config.audiences_settings.clone(),
     };
     let tag = TagState {
         authz,
