@@ -361,6 +361,8 @@ fn redirect(uri: &str) -> Response<&'static str> {
 
 // if set_id is not integer - this is new set and it shouldnt be available through storage v1
 fn valid_set_id(set_id: &str) -> bool {
+    set_id.starts_with("webinar_") ||
+    set_id.starts_with("p2p_") ||
     set_id.parse::<u128>().is_ok()
 }
 
@@ -470,5 +472,7 @@ mod tests {
         );
         assert_eq!(valid_set_id("08286a1c-3984-4160-ae55-921780bb31ab"), false);
         assert_eq!(valid_set_id("12345"), true);
+        assert_eq!(valid_set_id("p2p_12345"), true);
+        assert_eq!(valid_set_id("webinar_12345"), true);
     }
 }
