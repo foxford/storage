@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 
-if [[ ! ${NAMESPACE} ]]; then echo "NAMESPACE is required" 1>&2; exit 1; fi
 if [[ ! ${PROJECT} ]]; then echo "PROJECT is required and must be storage or storage-v2" 1>&2; exit 1; fi
 if [[ ! ${GITHUB_TOKEN} ]]; then echo "GITHUB_TOKEN is required" 1>&2; exit 1; fi
 
@@ -36,20 +35,24 @@ END
 
 set -ex
 
-FILE_FROM_GITHUB "deploy" "${SOURCE}/certs/ca-${NAMESPACE}.crt"
-FILE_FROM_GITHUB "deploy/k8s/base" "${SOURCE}/apps/deploy/${PROJECT}/base/kustomization.yaml"
-FILE_FROM_GITHUB "deploy/k8s/base" "${SOURCE}/apps/deploy/${PROJECT}/base/${PROJECT}-service.yaml"
-FILE_FROM_GITHUB "deploy/k8s/base" "${SOURCE}/apps/deploy/${PROJECT}/base/${PROJECT}.yaml"
-FILE_FROM_GITHUB "deploy/k8s/base/configs" "${SOURCE}/apps/deploy/${PROJECT}/base/configs/env.ini"
-FILE_FROM_GITHUB "deploy/k8s/base/patches" "${SOURCE}/apps/deploy/${PROJECT}/base/patches/update-replica-resources.yaml"
-FILE_FROM_GITHUB "deploy/k8s/base/patches" "${SOURCE}/apps/deploy/${PROJECT}/base/patches/environments.yaml"
-FILE_FROM_GITHUB "deploy/k8s/base/patches" "${SOURCE}/apps/deploy/${PROJECT}/base/patches/tenant-credentials.yaml"
-FILE_FROM_GITHUB "deploy/k8s/overlays/ns" "${SOURCE}/apps/deploy/${PROJECT}/overlays/${NAMESPACE}/kustomization.yaml"
-FILE_FROM_GITHUB "deploy/k8s/overlays/ns" "${SOURCE}/apps/deploy/${PROJECT}/overlays/${NAMESPACE}/${PROJECT}-ingress.yaml"
-FILE_FROM_GITHUB "deploy/k8s/overlays/ns/configs" "${SOURCE}/apps/deploy/${PROJECT}/overlays/${NAMESPACE}/configs/App.toml"
-FILE_FROM_GITHUB "deploy/k8s/overlays/ns/configs" "${SOURCE}/apps/deploy/${PROJECT}/overlays/${NAMESPACE}/configs/env.ini"
-FILE_FROM_GITHUB "deploy/k8s/overlays/ns/patches" "${SOURCE}/apps/deploy/${PROJECT}/overlays/${NAMESPACE}/patches/update-replica-resources.yaml" "optional"
-FILE_FROM_GITHUB "deploy/k8s/overlays/ns/patches" "${SOURCE}/apps/deploy/${PROJECT}/overlays/${NAMESPACE}/patches/tenant-credentials.yaml" "optional"
+if [[ -n ${NAMESPACE} ]]; then
+    FILE_FROM_GITHUB "deploy" "${SOURCE}/certs/ca-${NAMESPACE}.crt"
+    FILE_FROM_GITHUB "deploy/k8s/base" "${SOURCE}/apps/deploy/${PROJECT}/base/kustomization.yaml"
+    FILE_FROM_GITHUB "deploy/k8s/base" "${SOURCE}/apps/deploy/${PROJECT}/base/${PROJECT}-service.yaml"
+    FILE_FROM_GITHUB "deploy/k8s/base" "${SOURCE}/apps/deploy/${PROJECT}/base/${PROJECT}.yaml"
+    FILE_FROM_GITHUB "deploy/k8s/base/configs" "${SOURCE}/apps/deploy/${PROJECT}/base/configs/env.ini"
+    FILE_FROM_GITHUB "deploy/k8s/base/patches" "${SOURCE}/apps/deploy/${PROJECT}/base/patches/update-replica-resources.yaml"
+    FILE_FROM_GITHUB "deploy/k8s/base/patches" "${SOURCE}/apps/deploy/${PROJECT}/base/patches/environments.yaml"
+    FILE_FROM_GITHUB "deploy/k8s/base/patches" "${SOURCE}/apps/deploy/${PROJECT}/base/patches/tenant-credentials.yaml"
+    FILE_FROM_GITHUB "deploy/k8s/overlays/ns" "${SOURCE}/apps/deploy/${PROJECT}/overlays/${NAMESPACE}/kustomization.yaml"
+    FILE_FROM_GITHUB "deploy/k8s/overlays/ns" "${SOURCE}/apps/deploy/${PROJECT}/overlays/${NAMESPACE}/${PROJECT}-ingress.yaml"
+    FILE_FROM_GITHUB "deploy/k8s/overlays/ns/configs" "${SOURCE}/apps/deploy/${PROJECT}/overlays/${NAMESPACE}/configs/App.toml"
+    FILE_FROM_GITHUB "deploy/k8s/overlays/ns/configs" "${SOURCE}/apps/deploy/${PROJECT}/overlays/${NAMESPACE}/configs/env.ini"
+    FILE_FROM_GITHUB "deploy/k8s/overlays/ns/patches" "${SOURCE}/apps/deploy/${PROJECT}/overlays/${NAMESPACE}/patches/update-replica-resources.yaml" "optional"
+    FILE_FROM_GITHUB "deploy/k8s/overlays/ns/patches" "${SOURCE}/apps/deploy/${PROJECT}/overlays/${NAMESPACE}/patches/tenant-credentials.yaml" "optional"
+
+    echo "In order to enable deployment NAMESPACE is required."
+fi
 
 ## Use "storage" project for the documentation.
 FILE_FROM_GITHUB "deploy" "${SOURCE}/utils/ci-mdbook.sh"
