@@ -23,7 +23,7 @@ Subject's namespace and account label are retrieved from `aud` and `sub` claims 
 Possible values for `SUBJECT`:
 
 subject       |
-------------- | -
+------------- |
 ACCOUNT_LABEL |
 "anonymous"   |
 
