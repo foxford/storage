@@ -36,10 +36,16 @@ jobs:
     - stage: check
       name: Docs
       install: cargo install mdbook --vers ^0.4
-      script: PROJECT="storage-v2" ./deploy.init.sh && mdbook build docs && ./deploy/ci-mdbook.sh
+      script:
+        - PROJECT="storage-v2" ./deploy.init.sh
+        - mdbook build docs
+        - ./deploy/ci-mdbook.sh
     - stage: build
       name: Build
-      script: PROJECT="storage-v2" ./deploy.init.sh && ./deploy/ci-build.sh
+      script:
+        - PROJECT="storage-v2" ./deploy.init.sh
+        - ./deploy/ci-install-tools.sh
+        - ./deploy/ci-build.sh
 
 stages:
   - name: check
