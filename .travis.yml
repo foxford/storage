@@ -1,18 +1,24 @@
 language: rust
-rust:
-  - stable
+rust: stable
+
 addons:
   apt:
     packages:
       - awscli
+
 cache:
   directories:
     - ${TRAVIS_HOME}/.cargo
+
 before_cache:
   - rm -rf ${TRAVIS_HOME}/.cargo/registry
-services: docker
+
+services:
+  - docker
+
 git:
   depth: 1
+
 jobs:
   include:
     - stage: check
@@ -28,14 +34,16 @@ jobs:
       script: cargo clippy
     - stage: check
       name: Docs
-      install: cargo install mdbook --vers ^0.2
-      script: mdbook build docs && ./deploy.init.sh && PROJECT='storage' ./deploy/s3-docs.sh
-    - stage: deploy
-      name: Kubernetes
-      script: ./deploy.init.sh && ./deploy/travis-run.sh
+      install: cargo install mdbook --vers ^0.4
+      script: PROJECT="storage-v2" ./deploy.init.sh && mdbook build docs && ./deploy/ci-mdbook.sh
+    - stage: build
+      name: Build
+      script: PROJECT="storage-v2" ./deploy.init.sh && ./deploy/ci-build.sh
+
 stages:
   - name: check
-  - name: deploy
-    if: (branch = master AND type = push) OR tag IS present
+  - name: build
+    if: branch = master AND type = push
+
 notifications:
   email: false

@@ -1,19 +1,10 @@
 #!/usr/bin/env bash
 
-## Initializing deploy for Travis CI
-if [[ "${TRAVIS}" ]]; then
-    if [[ "${TRAVIS_TAG}" ]]; then
-        NAMESPACE='production'
-    else
-        NAMESPACE='staging'
-    fi
-fi
-
 if [[ ! ${NAMESPACE} ]]; then echo "NAMESPACE is required" 1>&2; exit 1; fi
 if [[ ! ${PROJECT} ]]; then echo "PROJECT is required and must be storage or storage-v2" 1>&2; exit 1; fi
 if [[ ! ${GITHUB_TOKEN} ]]; then echo "GITHUB_TOKEN is required" 1>&2; exit 1; fi
-BRANCH="${BRANCH:-master}"
 
+BRANCH="${BRANCH:-master}"
 SOURCE=${SOURCE:-"https://api.github.com/repos/netology-group/ulms-env/contents/k8s"}
 
 function FILE_FROM_GITHUB() {
@@ -33,11 +24,19 @@ function FILE_FROM_GITHUB() {
         "${URI}?ref=${BRANCH}"
 }
 
+function ADD_PROJECT() {
+    local _PATH="${1}"; if [[ ! "${_PATH}" ]]; then echo "${FUNCNAME[0]}:_PATH is required" 1>&2; exit 1; fi
+    local _PROJECT="${2}"; if [[ ! "${_PROJECT}" ]]; then echo "${FUNCNAME[0]}:PROJECT is required" 1>&2; exit 1; fi
+
+    tee "${_PATH}" <<END
+PROJECT=${_PROJECT}
+$(cat "${_PATH}")
+END
+}
+
 set -ex
 
 FILE_FROM_GITHUB "deploy" "${SOURCE}/certs/ca-${NAMESPACE}.crt"
-FILE_FROM_GITHUB "deploy" "${SOURCE}/utils/s3-docs.sh"
-FILE_FROM_GITHUB "deploy" "${SOURCE}/utils/travis-run.sh"
 FILE_FROM_GITHUB "deploy/k8s/base" "${SOURCE}/apps/deploy/${PROJECT}/base/kustomization.yaml"
 FILE_FROM_GITHUB "deploy/k8s/base" "${SOURCE}/apps/deploy/${PROJECT}/base/${PROJECT}-service.yaml"
 FILE_FROM_GITHUB "deploy/k8s/base" "${SOURCE}/apps/deploy/${PROJECT}/base/${PROJECT}.yaml"
@@ -52,4 +51,15 @@ FILE_FROM_GITHUB "deploy/k8s/overlays/ns/configs" "${SOURCE}/apps/deploy/${PROJE
 FILE_FROM_GITHUB "deploy/k8s/overlays/ns/patches" "${SOURCE}/apps/deploy/${PROJECT}/overlays/${NAMESPACE}/patches/update-replica-resources.yaml" "optional"
 FILE_FROM_GITHUB "deploy/k8s/overlays/ns/patches" "${SOURCE}/apps/deploy/${PROJECT}/overlays/${NAMESPACE}/patches/tenant-credentials.yaml" "optional"
 
-chmod u+x deploy/{s3-docs.sh,travis-run.sh}
+## Use "storage" project for the documentation.
+FILE_FROM_GITHUB "deploy" "${SOURCE}/utils/ci-mdbook.sh"
+ADD_PROJECT "deploy/ci-mdbook.sh" "storage"
+
+## Use the same project for build & deploy scripts.
+CI_FILES=(ci-build.sh ci-deploy.sh)
+for FILE in ${CI_FILES[@]}; do
+    FILE_FROM_GITHUB "deploy" "${SOURCE}/utils/${FILE}"
+    ADD_PROJECT "deploy/${FILE}" "${PROJECT}"
+done
+
+chmod u+x deploy/{ci-mdbook.sh,ci-build.sh,ci-deploy.sh}
