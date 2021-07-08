@@ -2,7 +2,7 @@ apiVersion: skaffold/v2beta11
 kind: Config
 build:
   artifacts:
-  - image: skaffold/storage
+  - image: foxford/storage
     docker:
       dockerfile: docker/Dockerfile
   tagPolicy:
