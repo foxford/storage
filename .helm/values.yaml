@@ -1,0 +1,176 @@
+app:
+  host:
+    _default: ""
+    testing03: storage.testing03.svc.netology-group.services
+    production: storage.svc.netology-group.services
+  rust_log:
+    _default: "storage=info"
+    production: "storage=error"
+  cache:
+    enabled:
+      _default: "0"
+      production: "1"
+    pool_size:
+      _default: "50"
+    pool_idle_size:
+      _default: "5"
+    pool_timeout:
+      _default: "5"
+    expiration_time:
+      _default: "600"
+      production: "21600"
+    url:
+      _default: "redis://redis:6379/7"
+      production: "redis://redis:6379/6"
+  id:
+    _default: ""
+    testing03: storage.testing03.svc.netology-group.services
+    production: storage.svc.netology-group.services
+  allow_origins:
+    _default: "*"
+  max_age:
+    _default: "86400"
+  backend:
+    default:
+      _default: yandex
+  proxy_host:
+    _default: ""
+    production: storage-lb.netology-group.services
+  authn:
+    ident:
+      _default: ""
+      testing03: testing03.svc.netology-group.services
+      production: svc.netology-group.services
+    audience:
+      _default:
+        - ""
+      testing03:
+        - testing03.svc.netology-group.services
+      production:
+        - svc.netology-group.services
+    algorithm:
+      _default: ES256
+    key:
+      _default: data/keys/svc.public_key.p8.der
+  authz:
+    ident:
+      _default: ""
+      testing03: testing03.svc.netology-group.services
+      production: svc.netology-group.services
+    type:
+      _default: local
+    uri: {}
+    algorithm: {}
+    key: {}
+    trusted:
+      _default:
+        - ""
+      testing03:
+        - tq.testing03.svc.netology-group.services
+      production:
+        - tq.svc.netology-group.services
+    timeout: {}
+    user_agent: {}
+    max_retries: {}
+  tenants:
+    - name: TalentTech
+      authn:
+        ident:
+          _default: iam.beta.svc.talenttech.ru
+          production: iam.svc.talenttech.ru
+        audience:
+          _default:
+            - beta.svc.talenttech.ru
+            - beta.usr.talenttech.ru
+          production:
+            - svc.talenttech.ru
+            - usr.talenttech.ru
+        algorithm:
+          _default: ES256
+        key:
+          _default: data/keys/iam.talenttech.public_key.p8.der
+      authz:
+        ident:
+          _default: beta.talenttech.ru
+          production: talenttech.ru
+        type:
+          _default: http
+        uri:
+          _default: https://api.netology-gateway-stage.talenttechlab.org/api/v1/ulms/authorize
+          production: https://api.netology-gateway.talenttechlab.com/api/v1/ulms/authorize
+        algorithm:
+          _default: ES256
+        key:
+          _default: data/keys/svc.private_key.p8.der
+        trusted: {}
+        timeout: {}
+        user_agent: {}
+        max_retries: {}
+      audiences_settings:
+        _default: beta.talenttech.ru
+        production: talenttech.ru
+      allowed_referers: {}
+    - name: Foxford
+      authn:
+        ident:
+          _default: iam.testing03.svc.foxford.ru
+          production: iam.svc.foxford.ru
+        audience:
+          _default:
+            - testing03.svc.foxford.ru
+            - testing03.usr.foxford.ru
+          production:
+            - svc.foxford.ru
+            - usr.foxford.ru
+        algorithm:
+          _default: ES256
+        key:
+          _default: data/keys/iam.foxford.public_key.p8.der
+      authz:
+        ident:
+          _default: testing03.foxford.ru
+          production: foxford.ru
+        type:
+          _default: http
+        uri:
+          _default: http://dispatcher-service:8080/api/v1/authz/testing03.foxford.ru
+          production: http://dispatcher-service:8080/api/v1/authz/foxford.ru
+        algorithm:
+          _default: ES256
+        key:
+          _default: data/keys/svc.private_key.p8.der
+        trusted: {}
+        timeout: {}
+        user_agent: {}
+        max_retries: {}
+      audiences_settings:
+        _default: testing03.foxford.ru
+        production: foxford.ru
+      allowed_referers:
+        production:
+          - "*.netology-group.services"
+          - "*.foxford.ru"
+          - "*.talenttechlab.com"
+          - "*.talenttech.ru"
+          - foxford.ru
+  organizations:
+    - ng
+    - b2g
+  port:
+    _default: "8080"
+  hpa:
+    min_replicas:
+      _default: "2"
+    max_replicas:
+      _default: "4"
+    average_utilization:
+      _default: "80"
+  resources:
+    requests:
+      cpu:
+        _default: "0.01"
+      memory:
+        _default: 300Mi
+    limits:
+      memory:
+        _default: 300Mi

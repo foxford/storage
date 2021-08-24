@@ -1,0 +1,101 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Chart.Name }}
+{{- if eq .Values.werf.env "production" }}
+  annotations:
+    "werf.io/replicas-on-creation": {{ pluck .Values.werf.env .Values.app.hpa.min_replicas | first | default .Values.app.hpa.min_replicas._default }}
+{{- end }}
+spec:
+{{- if eq .Values.werf.env "production" }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 50%
+{{- end }}
+  replicas: {{ pluck .Values.werf.env .Values.app.hpa.min_replicas | first | default .Values.app.hpa.min_replicas._default }}
+  selector:
+    matchLabels:
+      app: {{ .Chart.Name }}
+  template:
+    metadata:
+      annotations:
+        checksum/app-config: {{ include (print $.Template.BasePath "/09-app-cm.yaml") . | sha256sum }}
+      labels:
+        app: {{ .Chart.Name }}
+    spec:
+      imagePullSecrets:
+      - name: registrysecret
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 5
+            podAffinityTerm:
+              topologyKey: "kubernetes.io/hostname"
+              labelSelector:
+                matchLabels:
+                  app: {{ .Chart.Name }}
+      containers:
+      - name: backend
+        image: {{ .Values.werf.image.app }}
+        imagePullPolicy: IfNotPresent
+        command: ["/app/storage"]
+        resources:
+          requests:
+            cpu: {{ pluck .Values.werf.env .Values.app.resources.requests.cpu | first | default .Values.app.resources.requests.cpu._default }}
+            memory: {{ pluck .Values.werf.env .Values.app.resources.requests.memory | first | default .Values.app.resources.requests.memory._default }}
+          limits:
+            memory: {{ pluck .Values.werf.env .Values.app.resources.limits.memory | first | default .Values.app.resources.limits.memory._default }}
+        env:
+{{- include "app_envs" . | indent 8 }}
+        volumeMounts:
+        - name: config
+          mountPath: /app/App.toml
+          subPath: App.toml
+        # - name: svc
+        #   mountPath: /app/data/keys/svc.private_key.p8.der
+        #   subPath: svc.private_key
+        # - name: svc
+        #   mountPath: /app/data/keys/svc.public_key.p8.der
+        #   subPath: svc.public_key
+        # - name: talenttech
+        #   mountPath: /app/data/keys/iam.talenttech.public_key.p8.der
+        #   subPath: iam.talenttech.public_key
+        # - name: netology
+        #   mountPath: /app/data/keys/iam.netology.public_key.p8.der
+        #   subPath: iam.netology.public_key
+        # - name: foxford
+        #   mountPath: /app/data/keys/iam.foxford.public_key.p8.der
+        #   subPath: iam.foxford.public_key
+        ports:
+        - name: app
+          containerPort: {{ pluck .Values.werf.env .Values.app.port | first | default .Values.app.port._default }}
+      volumes:
+      - name: config
+        configMap:
+          name: {{ .Chart.Name }}-config
+      # - name: svc
+      #   secret:
+      #     secretName: svc-pkcs8-der-credentials
+      # - name: talenttech
+      #   secret:
+      #     secretName: iam.talenttech-2019-10-04-pkcs8-der-credentials
+      # - name: netology
+      #   secret:
+      #     secretName: iam.netology-2019-02-04-pkcs8-der-credentials
+      # - name: foxford
+      #   secret:
+      #     secretName: iam.foxford-2019-02-04-pkcs8-der-credentials
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Chart.Name }}
+spec:
+  selector:
+    app: {{ .Chart.Name }}
+  ports:
+    - name: app
+      port: {{ pluck .Values.werf.env .Values.app.port | first | default .Values.app.port._default }}

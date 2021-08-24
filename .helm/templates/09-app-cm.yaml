@@ -1,0 +1,96 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Chart.Name }}-config
+data:
+  App.toml: |
+    id = {{ pluck .Values.werf.env .Values.app.id | first | default .Values.app.id._default | quote }}
+
+    [http]
+    listener_address = "0.0.0.0:8080"
+
+    [http.cors]
+    allow_origins = {{ pluck .Values.werf.env .Values.app.allow_origins | first | default .Values.app.allow_origins._default | quote }}
+    max_age = {{ pluck .Values.werf.env .Values.app.max_age | first | default .Values.app.max_age._default }}
+
+    ##
+    ## S3-compatible underlying backends
+    ##
+    [backend]
+    default = {{ pluck .Values.werf.env .Values.app.backend.default | first | default .Values.app.backend.default._default | quote }}
+    [backend.alt.yandex_b2g]
+    [backend.alt.yandex]
+{{- if eq .Values.werf.env "production" }}
+    proxy_host = {{ pluck .Values.werf.env .Values.app.proxy_host | first | default .Values.app.proxy_host._default | quote }}
+{{- end }}
+
+    ##
+    ## ULMS
+    ##
+    [authn.{{ pluck .Values.werf.env .Values.app.authn.ident | first | default .Values.app.authn.ident._default | quote }}]
+    audience = [
+    {{- range $k, $v := (pluck .Values.werf.env .Values.app.authn.audience | first | default .Values.app.authn.audience._default) }}
+    {{- if $k }}, {{ end }}
+    {{- $v | quote -}}
+    {{- end -}}
+    ]
+    algorithm = {{ pluck .Values.werf.env .Values.app.authn.algorithm | first | default .Values.app.authn.algorithm._default | quote }}
+    key = {{ pluck .Values.werf.env .Values.app.authn.key | first | default .Values.app.authn.key._default | quote }}
+
+    [authz.{{ pluck .Values.werf.env .Values.app.authz.ident | first | default .Values.app.authz.ident._default | quote }}]
+    type = {{ pluck .Values.werf.env .Values.app.authz.type | first | default .Values.app.authz.type._default | quote }}
+    trusted = [
+    {{- range $k, $v := (pluck .Values.werf.env .Values.app.authz.trusted | first | default .Values.app.authz.trusted._default) }}
+    {{- if $k }}, {{ end }}
+    {{- $v | quote -}}
+    {{- end -}}
+    ]
+
+{{- range $tenant := .Values.app.tenants }}
+
+    ##
+    ## {{ $tenant.name }}
+    ##
+    [authn.{{ pluck $.Values.werf.env $tenant.authn.ident | first | default $tenant.authn.ident._default | quote }}]
+    audience = [
+    {{- range $k, $v := (pluck $.Values.werf.env $tenant.authn.audience | first | default $tenant.authn.audience._default) }}
+    {{- if $k }}, {{ end }}
+    {{- $v | quote -}}
+    {{- end -}}
+    ]
+    algorithm = {{ pluck $.Values.werf.env $tenant.authn.algorithm | first | default $tenant.authn.algorithm._default | quote }}
+    key = {{ pluck $.Values.werf.env $tenant.authn.key | first | default $tenant.authn.key._default | quote }}
+
+    [authz.{{ pluck $.Values.werf.env $tenant.authz.ident | first | default $tenant.authz.ident._default | quote }}]
+    type = {{ pluck $.Values.werf.env $tenant.authz.type | first | default $tenant.authz.type._default | quote }}
+  {{- if eq (pluck $.Values.werf.env $tenant.authz.type | first | default $tenant.authz.type._default) "http" }}
+    uri = {{ pluck $.Values.werf.env $tenant.authz.uri | first | default $tenant.authz.uri._default | quote }}
+    algorithm = {{ pluck $.Values.werf.env $tenant.authz.algorithm | first | default $tenant.authz.algorithm._default | quote }}
+    key = {{ pluck $.Values.werf.env $tenant.authz.key | first | default $tenant.authz.key._default | quote }}
+    {{- if (pluck $.Values.werf.env $tenant.authz.trusted | first | default false) }}
+    trusted = {{ pluck $.Values.werf.env $tenant.authz.trusted | first | default $tenant.authz.trusted._default | quote }}
+    {{- end }}
+    {{- if $tenant.authz.timeout }}
+    timeout = {{ pluck $.Values.werf.env $tenant.authz.timeout | first | default $tenant.authz.timeout._default | quote }}
+    {{- end }}
+    {{- if $tenant.authz.user_agent }}
+    user_agent = {{ pluck $.Values.werf.env $tenant.authz.user_agent | first | default $tenant.authz.user_agent._default | quote }}
+    {{- end }}
+    {{- if $tenant.authz.max_retries }}
+    max_retries = {{ pluck $.Values.werf.env $tenant.authz.max_retries | first | default $tenant.authz.max_retries._default | quote }}
+    {{- end }}
+  {{- else if eq (pluck $.Values.werf.env $tenant.authz.type | first | default $tenant.authz.type._default) "none" }}
+  {{- end }}
+
+    [audiences_settings.{{ pluck $.Values.werf.env $tenant.audiences_settings | first | default $tenant.audiences_settings._default | quote }}]
+
+  {{- if (pluck $.Values.werf.env $tenant.allowed_referers | first | default false) }}
+    allowed_referers = [
+    {{- range $k, $v := (pluck $.Values.werf.env $tenant.allowed_referers | first | default $tenant.allowed_referers._default) }}
+    {{- if $k }}, {{ end }}
+    {{- $v | quote -}}
+    {{- end -}}
+    ]
+  {{- end }}
+{{- end }}

@@ -1,0 +1,44 @@
+name: Converge Test
+
+env:
+  WERF_VERSION: v1.2
+  WERF_CHANNEL: beta
+  APPLICATION: classroom
+  SERVICE: storage
+  WERF_REPO: "netologygroup/storage"
+  WERF_REPO_DOCKER_HUB_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+  WERF_REPO_DOCKER_HUB_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+  WERF_SECRET_KEY: ${{ secrets.WERF_SECRET_KEY }}
+  WERF_NAMESPACE: ${{ github.event.inputs.environment }}-${APPLICATION}-${{ github.event.inputs.organization }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment'
+        required: true
+        default: 'testing03'
+      organization:
+        description: 'Organization'
+        required: true
+        default: 'ng'
+      version:
+        description: 'Commit/tag/branch'
+        required: false
+
+jobs:
+  converge:
+    name: Converge
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.inputs.version }}
+          fetch-depth: 0
+      - name: Converge
+        uses: werf/actions/converge@${WERF_VERSION}
+        with:
+          channel: ${WERF_CHANNEL}
+          env: ${{ github.event.inputs.environment }}
+          kube-config-base64-data: ${{ secrets.KUBE_CONFIG_BASE64_DATA }}
