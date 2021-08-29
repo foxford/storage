@@ -1,0 +1,45 @@
+app:
+  rust_log:
+    _default: "storage=info"
+    production: "storage=error"
+  cache:
+    enabled:
+      _default: "0"
+      production: "1"
+    pool_size:
+      _default: "50"
+    pool_idle_size:
+      _default: "5"
+    pool_timeout:
+      _default: "5"
+    expiration_time:
+      _default: "600"
+      production: "21600"
+    url:
+      _default: "redis://redis:6379/7"
+      production: "redis://redis:6379/6"
+  allow_origins:
+    _default: "*"
+  max_age:
+    _default: "86400"
+  backend:
+    default:
+      _default: yandex
+  port:
+    _default: "8080"
+  hpa:
+    min_replicas:
+      _default: "2"
+    max_replicas:
+      _default: "4"
+    average_utilization:
+      _default: "80"
+  resources:
+    requests:
+      cpu:
+        _default: 10m
+      memory:
+        _default: 300Mi
+    limits:
+      memory:
+        _default: 300Mi
