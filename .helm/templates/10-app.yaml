@@ -51,7 +51,7 @@ spec:
           limits:
             memory: {{ pluck .Values.werf.env .Values.app.resources.limits.memory | first | default .Values.app.resources.limits.memory._default }}
         env:
-{{- include "app_envs" . | indent 8 }}
+{{- include "envs" . | indent 8 }}
         volumeMounts:
 {{- include "volumeMounts" . | indent 8 }}
         ports:

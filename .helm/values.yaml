@@ -22,9 +22,6 @@ app:
     _default: "*"
   max_age:
     _default: "86400"
-  backend:
-    default:
-      _default: yandex
   port:
     _default: "8080"
   hpa:

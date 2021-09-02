@@ -19,10 +19,11 @@ data:
     ##
     [backend]
     default = {{ pluck .Values.werf.env .Values.app.backend.default | first | default .Values.app.backend.default._default | quote }}
-    [backend.alt.yandex_b2g]
-    [backend.alt.yandex]
-{{- if eq .Values.werf.env "production" }}
-    proxy_host = {{ pluck .Values.werf.env .Values.app.proxy_host | first | default .Values.app.proxy_host._default | quote }}
+{{- range (pluck .Values.werf.env .Values.app.backend.alt | first | default .Values.app.backend.alt._default) }}
+    [backend.alt.{{ .name }}]
+{{- if .proxy_host }}
+    proxy_host = {{ .proxy_host | quote }}
+{{- end }}
 {{- end }}
 
     ##

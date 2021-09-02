@@ -1,4 +1,4 @@
-{{- define "app_envs" }}
+{{- define "envs" }}
 - name: AWS_ACCESS_KEY_ID
   value: {{ pluck .Values.werf.env .Values.app.aws.ng.access_key_id | first | default .Values.app.aws.ng.access_key_id._default | quote }}
 - name: AWS_SECRET_ACCESS_KEY
