@@ -1,33 +1,5 @@
 project: storage
 configVersion: 1
 ---
-artifact: build-stage
-from: clux/muslrust:1.54.0-stable
-git:
-- add: /
-  to: /app
-  includePaths:
-  - src
-  stageDependencies:
-    setup:
-    - src/**
-shell:
-  setup:
-  - cd /app
-  - cargo build --release
----
 image: app
-from: alpine:3:14
-docker:
-  ENV:
-    TERM: "xterm"
-    TZ: "Europe/Moscow"
-  WORKDIR: /app
-shell:
-  beforeInstall:
-  - mkdir -p /app/data/keys
-import:
-- artifact: build-stage
-  add: /build/target/x86_64-unknown-linux-musl/release/storage
-  to: /app/storage
-  before: setup
+dockerfile: docker/Dockerfile
