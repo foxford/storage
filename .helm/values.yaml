@@ -32,11 +32,25 @@ app:
     average_utilization:
       _default: "80"
   resources:
-    requests:
-      cpu:
-        _default: 10m
-      memory:
-        _default: 300Mi
-    limits:
-      memory:
-        _default: 300Mi
+    cpu:
+      ng:
+        classroom:
+          _default: 100m
+        webinar:
+          _default: 1000m
+      b2g:
+        classroom:
+          _default: 100m
+        webinar:
+          _default: 1000m
+    memory:
+      ng:
+        classroom:
+          _default: 300Mi
+        webinar:
+          _default: 300Mi
+      b2g:
+        classroom:
+          _default: 300Mi
+        webinar:
+          _default: 300Mi
