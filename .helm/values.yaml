@@ -37,12 +37,12 @@ app:
         classroom:
           _default: 100m
         webinar:
-          _default: 1000m
+          _default: 100m
       b2g:
         classroom:
           _default: 100m
         webinar:
-          _default: 1000m
+          _default: 100m
     memory:
       ng:
         classroom:

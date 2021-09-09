@@ -50,6 +50,7 @@ spec:
             memory: {{ pluck .Values.werf.env (index .Values.app.resources.memory .Values.global.org .Values.global.app) | first | default (index .Values.app.resources.memory .Values.global.org .Values.global.app)._default }}
           limits:
             memory: {{ pluck .Values.werf.env (index .Values.app.resources.memory .Values.global.org .Values.global.app) | first | default (index .Values.app.resources.memory .Values.global.org .Values.global.app)._default }}
+{{- include "probes" . | indent 8 }}
         env:
 {{- include "envs" . | indent 8 }}
         volumeMounts:
