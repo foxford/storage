@@ -4,8 +4,7 @@ app:
     production: "storage=error"
   cache:
     enabled:
-      _default: "0"
-      production: "1"
+      _default: "1"
     pool_size:
       _default: "50"
     pool_idle_size:
