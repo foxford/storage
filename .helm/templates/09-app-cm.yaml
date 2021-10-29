@@ -49,6 +49,7 @@ data:
     ]
 
 {{- range $tenant := .Values.app.tenants }}
+{{- if (pluck $.Values.werf.env $tenant.authn.ident | first) }}
 
     ##
     ## {{ $tenant.name }}
@@ -94,4 +95,5 @@ data:
     {{- end -}}
     ]
   {{- end }}
+{{- end }}
 {{- end }}
