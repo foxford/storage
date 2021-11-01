@@ -15,8 +15,8 @@ app:
       _default: "600"
       production: "21600"
     url:
-      _default: "redis://redis:6379/7"
-      production: "redis://redis:6379/6"
+      _default: "redis://redis-storage:6379/7"
+      production: "redis://redis-storage:6379/6"
   allow_origins:
     _default: "*"
   max_age:
