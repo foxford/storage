@@ -1,0 +1,69 @@
+# Default values for chart.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 2
+
+app:
+  image:
+    repository: foxford/storage
+    tag: ""
+
+  resources:
+    limits:
+      cpu: 0.2
+      memory: 300Mi
+    requests:
+      cpu: 0.01
+      memory: 100Mi
+
+  s3:
+    # default: foo
+    # alt:
+    #   foo:
+    #     proxyHost: lb.foo.bar
+    #     secret: foo-credentials
+
+  svc:
+    # audience: foo.bar
+    # credentials:
+    #   svc-pkcs8-der-credentials:
+    #     - subPath: svc.private_key
+    #       mountPath: /app/data/keys/svc.private_key.p8.der
+    #     - subPath: svc.public_key
+    #       mountPath: /app/data/keys/svc.public_key.p8.der
+    # authn:
+    #   key: /app/data/keys/svc.public_key.p8.der
+    # authz:
+    #   type: local
+
+  audiences:
+    # - audience: foo.bar
+    #   credentials:
+    #     foobar-der-credentials:
+    #       - subPath: foobar-public-key
+    #         mountPath: /path/to/foobar/public/key
+    #   authn:
+    #     key: path/to/public_key.p8.der
+    #   authz:
+    #     type: http
+    #     url: "https://authz.example.org/api/v1/authz"
+    #     trusted:
+    #       - dispatcher
+
+env:
+  RUST_LOG: info
+  CACHE_ENABLED: 0
+  CACHE_POOL_SIZE: 50
+  CACHE_POOL_IDLE_SIZE: 5
+  CACHE_POOL_TIMEOUT: 5
+  CACHE_EXPIRATION_TIME: 600
+
+clusterService:
+  ports:
+    http: 8080
+
+ingress:
+  host: example.org
+  tls:
+    secretName: tls-certificates
