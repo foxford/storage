@@ -11,6 +11,12 @@ build:
     push: true
     useDockerCLI: true
 deploy:
-  kustomize:
-    paths:
-    - deploy/k8s/overlays/ns
+  helm:
+    releases:
+    - name: storage-v1
+      chartPath: chart
+      artifactOverrides:
+        container.image: foxford/storage:XXXXX # TODO: set specific image tag
+      imageStrategy:
+        helm: {}
+      valuesFiles:
