@@ -23,4 +23,4 @@ tower-web = "0.3"
 http = "0.1"
 url = "1.7"
 svc-authn = { version = "0.5", features = ["jose", "tower-web"] }
-svc-authz = "0.7"
+svc-authz = "0.10"
