@@ -20,7 +20,7 @@ chrono = "0.4"
 openssl = "*"
 diesel = { version = "1.4", features = ["postgres", "uuid", "chrono", "r2d2"] }
 tower-web = "0.3"
-http = "0.1"
+http = "0.2"
 url = "1.7"
 svc-authn = { version = "0.5", features = ["jose", "tower-web"] }
 svc-authz = "0.7"
