@@ -1,0 +1,125 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    {{- include "storage.labels" . | nindent 4 }}
+  name: {{ include "storage.fullname" . }}-app
+data:
+  App.toml: |
+    {{- $id := list (include "storage.name" . ) (include "storage.shortNamespace" .) "svc" .Values.app.svc.audience | compact | join "." }}
+    id = {{ $id | quote }}
+
+    [http]
+    listener_address = "0.0.0.0:8080"
+
+    [http.cors]
+    allow_origins = "*"
+    max_age = 86400
+
+    ##
+    ## S3-compatible underlying backends
+    ##
+    [backend]
+    default = {{ .Values.app.s3.default | quote }}
+    {{- range $key, $value := .Values.app.s3.alt }}
+    [backend.alt.{{ $key }}]
+    {{- if $value.proxyHost }}
+    proxy_host = {{ $value.proxyHost | quote }}
+    {{- end }}
+    {{- end }}
+    {{- println "" }}
+
+    {{- with .Values.app.svc }}
+    ##
+    ## SVC
+    ##
+
+    {{- $svc_audience := list (include "storage.shortNamespace" $) "svc" .audience | compact | join "." }}    
+    [authn.{{ $svc_audience | quote }}]
+    audience = [{{ $svc_audience | quote }}]
+    algorithm = "ES256"
+    key = {{ .authn.key | quote }}
+
+    {{- $ns_audience := list (include "storage.shortNamespace" $) "svc" .audience | compact | join "."  }}
+    {{- println "" }}
+
+    {{- with .authz }}
+    [authz.{{ $ns_audience | quote }}]
+    type = {{ .type | quote }}
+    trusted = [
+      {{- range .trusted }}
+        {{ (list . (include "storage.shortNamespace" $) "svc" $.Values.app.svc.audience) | compact | join "." | quote }},
+      {{- end }}
+    ]
+    {{- end }}
+    {{- end }}
+
+    {{- println "" }}
+    {{- range .Values.app.audiences }}
+    ##
+    ## {{ .audience }}
+    ##
+
+    {{- $svc_audience := "" }}
+    {{- $usr_audience := "" }}
+    {{- if regexMatch "(?:talenttech)" .audience }}
+    {{- $svc_audience = list (regexReplaceAll "(^(?:staging|testing)[\\d]*)" (include "storage.shortNamespace" $) "beta") "svc" .audience | compact | join "." }}
+    {{- $usr_audience = list (regexReplaceAll "(^(?:staging|testing)[\\d]*)" (include "storage.shortNamespace" $) "beta") "usr" .audience | compact | join "." }}
+    {{- else }}
+    {{- $svc_audience = list (include "storage.shortNamespace" $) "svc" .audience | compact | join "." }}
+    {{- $usr_audience = list (include "storage.shortNamespace" $) "usr" .audience | compact | join "." }}
+    {{- end }}
+    {{- with .authn }}
+    [authn.{{ list "iam" $svc_audience | join "." | quote }}]
+    audience = [{{ $svc_audience | quote }}, {{ $usr_audience | quote }}]
+    algorithm = {{ default "ES256" .algorithm | quote }}
+    key = {{ .key | quote }}
+    {{- end }}
+
+    {{- $ns_audience := "" }}
+    {{- if regexMatch "(?:talenttech)" .audience }}
+    {{- $ns_audience = list (regexReplaceAll "(^(?:staging|testing)[\\d]*)" (include "storage.shortNamespace" $) "beta") .audience | compact | join "."  }}
+    {{- else }}
+    {{- $ns_audience = list (include "storage.shortNamespace" $) .audience | compact | join "."  }}
+    {{- end }}
+    {{- println "" }}
+
+    {{- with .authz }}
+    [authz.{{ $ns_audience | quote }}]
+    type = {{ .type | quote }}
+    {{- if eq "http" .type }}
+    uri = {{ .uri | quote }}
+    algorithm = {{ default "ES256" .algorithm | quote }}
+    key = {{ default "data/keys/svc.private_key.p8.der" .key | quote }}
+    {{- if .trusted }}
+    trusted = [
+      {{- range $account_label := .trusted }}
+        {{ (list $account_label (include "storage.shortNamespace" $) "svc" $.Values.app.svc.audience) | compact | join "." | quote }},
+      {{- end }}
+    ]
+    {{- end }}
+    {{- end }}
+    {{- if eq "localwhitelist" .type }}
+    [[authz.{{ $ns_audience | quote }}.records]]
+    {{- range $record := .records }}
+    subject_account_id = {{ get $record "subject_account_id" | quote }}
+    object = [
+      {{- range $o := get $record "object" }}
+      {{ $o | quote }},
+      {{- end}}
+    ]
+    action = {{ get $record "action" | quote }}
+    {{- end }}
+    {{- end }}
+    {{- end }}
+
+    [audiences_settings.{{ $ns_audience | quote }}]
+    {{- if .allowedReferers}}
+    allowed_referers = [ 
+    {{- range $referer := .allowedReferers }}
+      {{ $referer | quote }}, 
+    {{- end }}
+    ]
+    {{- end }}
+    {{- println "" }}
+    {{- end }}

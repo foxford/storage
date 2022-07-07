@@ -12,6 +12,13 @@ build:
     useDockerCLI: true
     tryImportMissing: true
 deploy:
-  kustomize:
-    paths:
-    - deploy/k8s/overlays/ns
+  helm:
+    releases:
+      - name: "{{ .PROJECT }}"
+        chartPath: chart
+        artifactOverrides:
+          app.image: foxford/storage
+        imageStrategy:
+          helm: {}
+        valuesFiles:
+          - deploy/values.yaml

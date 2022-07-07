@@ -1,0 +1,125 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "storage.fullname" . }}
+  labels:
+    {{- include "storage.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "storage.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/app-cm: {{ include (print $.Template.BasePath "/app-cm.yaml") . | sha256sum }}
+      labels:
+        {{- include "storage.labels" . | nindent 8 }}
+    spec:
+      imagePullSecrets:
+        - name: regcred
+      containers:
+        - name: storage
+          image: "{{ .Values.app.image.repository }}:{{ .Values.app.image.tag | default .Chart.AppVersion }}"
+          ports:
+            - containerPort: {{ .Values.clusterService.ports.http }}
+          volumeMounts:
+            - name: config
+              mountPath: /app/App.toml
+              subPath: App.toml
+            {{- with .Values.app.svc }}
+            {{- $audience := .audience }}
+            {{- range $secret, $mounts := .credentials }}
+            {{- range $mounts }}
+            - name: {{ include "storage.volumeMountName" (list $audience $secret) }}
+              mountPath: {{ .mountPath }}
+              subPath: {{ .subPath }}
+            {{- end }}
+            {{- end }}
+            {{- end }}
+            {{- range .Values.app.audiences }}
+            {{- $audience := .audience }}
+            {{- range $secret, $mounts := .credentials }}
+            {{- range $mounts }}
+            - name: {{ include "storage.volumeMountName" (list $audience $secret) }}
+              mountPath: {{ .mountPath }}
+              subPath: {{ .subPath }}
+            {{- end }}
+            {{- end }}
+            {{- end }}
+          env:
+            {{- range $key, $value := .Values.env }}
+            - name: {{ $key }}
+              value: {{ $value | default "" | quote }}
+            {{- end }}
+            {{- if eq ( get .Values.env "CACHE_ENABLED" | int ) 1 }}
+            - name: CACHE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: redis-storage-credentials
+                  key: CACHE_URL
+            {{- end }}
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ (get .Values.app.s3.alt .Values.app.s3.default).secret }}
+                  key: key
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ (get .Values.app.s3.alt .Values.app.s3.default).secret }}
+                  key: secret
+            - name: AWS_ENDPOINT
+              valueFrom:
+                secretKeyRef:
+                  name: {{ (get .Values.app.s3.alt .Values.app.s3.default).secret }}
+                  key: endpoint
+            - name: AWS_REGION
+              valueFrom:
+                secretKeyRef:
+                  name: {{ (get .Values.app.s3.alt .Values.app.s3.default).secret }}
+                  key: region
+            {{- range $key, $value := .Values.app.s3.alt }}
+            - name: {{ list $key "AWS_ACCESS_KEY_ID" | compact | join "_" | upper }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $value.secret }}
+                  key: key
+            - name: {{ list $key "AWS_SECRET_ACCESS_KEY" | compact | join "_" | upper }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $value.secret }}
+                  key: secret
+            - name: {{ list $key "AWS_ENDPOINT" | compact | join "_" | upper }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $value.secret }}
+                  key: endpoint
+            - name: {{ list $key "AWS_REGION" | compact | join "_" | upper }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $value.secret }}
+                  key: region
+            {{- end }}
+          resources:
+            {{- toYaml .Values.app.resources | nindent 12 }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "storage.fullname" . }}-app
+        {{- with .Values.app.svc }}
+        {{- $audience := .audience }}
+        {{- range $secret, $mounts := .credentials }}
+        - name: {{ include "storage.volumeMountName" (list $audience $secret) }}
+          secret:
+            secretName: {{ $secret }}
+        {{- end }}
+        {{- end }}
+        {{- range .Values.app.audiences }}
+        {{- $audience := .audience }}
+        {{- range $secret, $mounts := .credentials }}
+        - name: {{ include "storage.volumeMountName" (list $audience $secret) }}
+          secret:
+            secretName: {{ $secret }}
+        {{- end }}
+        {{- end }}
