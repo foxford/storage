@@ -63,7 +63,11 @@ clusterService:
   ports:
     http: 8080
 
-ingress:
-  host: example.org
-  tls:
-    secretName: tls-certificates
+tls:
+  secretName: tls-certificates
+
+# ingress:
+#   host: example.org
+
+# legacyIngress:
+#   host: example.org
