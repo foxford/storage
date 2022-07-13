@@ -6,7 +6,7 @@ metadata:
   name: {{ include "storage.fullname" . }}-app
 data:
   App.toml: |
-    {{- $id := list (include "storage.name" . ) (include "storage.shortNamespace" .) "svc" .Values.app.svc.audience | compact | join "." }}
+    {{- $id := list (include "storage.name" . ) (include "storage.shortNamespace" .) .Values.app.svc.audience | compact | join "." }}
     id = {{ $id | quote }}
 
     [http]
@@ -34,21 +34,21 @@ data:
     ## SVC
     ##
 
-    {{- $svc_audience := list (include "storage.shortNamespace" $) "svc" .audience | compact | join "." }}    
+    {{- $svc_audience := list (include "storage.shortNamespace" $) .audience | compact | join "." }}    
     [authn.{{ $svc_audience | quote }}]
     audience = [{{ $svc_audience | quote }}]
     algorithm = "ES256"
     key = {{ .authn.key | quote }}
 
-    {{- $ns_audience := list (include "storage.shortNamespace" $) "svc" .audience | compact | join "."  }}
+    {{- $ns_audience := list (include "storage.shortNamespace" $) .audience | compact | join "."  }}
     {{- println "" }}
 
     {{- with .authz }}
     [authz.{{ $ns_audience | quote }}]
     type = {{ .type | quote }}
     trusted = [
-      {{- range .trusted }}
-        {{ (list . (include "storage.shortNamespace" $) "svc" $.Values.app.svc.audience) | compact | join "." | quote }},
+      {{- range $account_label := .trusted }}
+        {{ $ns_audience | list $account_label | join "." | quote }},
       {{- end }}
     ]
     {{- end }}
@@ -94,7 +94,7 @@ data:
     {{- if .trusted }}
     trusted = [
       {{- range $account_label := .trusted }}
-        {{ (list $account_label (include "storage.shortNamespace" $) "svc" $.Values.app.svc.audience) | compact | join "." | quote }},
+        {{ (list $account_label (include "storage.shortNamespace" $) $.Values.app.svc.audience) | compact | join "." | quote }},
       {{- end }}
     ]
     {{- end }}
