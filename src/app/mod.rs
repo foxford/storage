@@ -63,6 +63,7 @@ struct TagListQueryString {
 struct TagEmptyResponse {}
 
 #[derive(Debug)]
+#[allow(dead_code)]
 struct SignState {
     application_id: AccountId,
     authz: svc_authz::ClientMap,
@@ -149,7 +150,7 @@ impl_web! {
         fn valid_referer(&self, bucket: &str, referer: Option<String>) -> Result<(), Error> {
             let error = || Error::builder().kind("set_read_error", "Error reading an object by key");
 
-            match self.aud_estm.estimate(&bucket) {
+            match self.aud_estm.estimate(bucket) {
                 Ok(aud) => match self.audiences_settings.get(aud) {
                     Some(aud_settings) => if !aud_settings.valid_referer(referer.as_deref()) {
                         let e = error().status(StatusCode::FORBIDDEN).detail("Invalid request").build();
@@ -268,7 +269,7 @@ impl_web! {
         fn valid_referer(&self, bucket: &str, referer: Option<String>) -> Result<(), Error> {
             let error = || Error::builder().kind("set_read_error", "Error reading an object using Set API");
 
-            match self.aud_estm.estimate(&bucket) {
+            match self.aud_estm.estimate(bucket) {
                 Ok(aud) => match self.audiences_settings.get(aud) {
                     Some(aud_settings) => if !aud_settings.valid_referer(referer.as_deref()) {
                         let e = error().status(StatusCode::FORBIDDEN).detail("Invalid request").build();
@@ -451,9 +452,9 @@ impl_web! {
             match self.aud_estm.parse_bucket(&query_string.filter) {
                 Ok(filter_b) => {
                     let include = parse_sets(&query_string.include, filter_b.audience());
-                    let exclude = parse_sets(&query_string.exclude.unwrap_or_else(|| String::from("")), filter_b.audience());
-                    let offset = query_string.offset.unwrap_or_else(|| 0);
-                    let limit = std::cmp::min(query_string.limit.unwrap_or_else(|| MAX_LIMIT), MAX_LIMIT);
+                    let exclude = parse_sets(&query_string.exclude.unwrap_or_default(), filter_b.audience());
+                    let offset = query_string.offset.unwrap_or(0);
+                    let limit = std::cmp::min(query_string.limit.unwrap_or(MAX_LIMIT), MAX_LIMIT);
 
                     future::Either::B(self.authz.authorize(filter_b.audience(), &sub, zobj, zact).and_then(move |zresp| match zresp {
                         Err(err) => future::Either::A(wrap_error(error().status(StatusCode::FORBIDDEN).detail(&err.to_string()).build())),
@@ -548,7 +549,7 @@ impl_web! {
             // Authz subject, object, and action
             let (object, zobj) = match body.set {
                 Some(ref set) => (
-                    s3_object(&set, &body.object),
+                    s3_object(set, &body.object),
                     vec!["buckets", &body.bucket, "sets", set]
                 ),
                 None => (
@@ -590,7 +591,7 @@ impl_web! {
         fn valid_referer(&self, bucket: &str, referer: Option<String>) -> Result<(), Error> {
             let error = || Error::builder().kind("sign_error", "Error signing a request");
 
-            match self.aud_estm.estimate(&bucket) {
+            match self.aud_estm.estimate(bucket) {
                 Ok(aud) => match self.audiences_settings.get(aud) {
                     Some(aud_settings) => if !aud_settings.valid_referer(referer.as_deref()) {
                         let e = error().status(StatusCode::FORBIDDEN).detail("Invalid request").build();
@@ -669,6 +670,7 @@ fn wrap_error<T>(err: Error) -> impl Future<Item = Result<T, Error>, Error = ()>
 
 ////////////////////////////////////////////////////////////////////////////////
 
+#[allow(clippy::mutable_key_type)]
 pub(crate) fn run(db: Option<ConnectionPool>, cache: Option<Cache>) {
     use http::{header, Method};
     use std::collections::HashSet;

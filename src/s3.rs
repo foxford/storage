@@ -53,7 +53,7 @@ impl Client {
             let mut parsed_url = Url::parse(&url).context("failed to parse generated uri")?;
 
             parsed_url
-                .set_host(Some(&proxy_host))
+                .set_host(Some(proxy_host))
                 .context("failed to set proxy backend")?;
 
             Ok(parsed_url.to_string())
@@ -62,12 +62,7 @@ impl Client {
         }
     }
 
-    pub(crate) fn presigned_url(
-        self: &Self,
-        method: &str,
-        bucket: &str,
-        object: &str,
-    ) -> Result<String> {
+    pub(crate) fn presigned_url(&self, method: &str, bucket: &str, object: &str) -> Result<String> {
         self.sign_request(&mut self.create_request(method, bucket, object))
     }
 }

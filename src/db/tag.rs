@@ -1,3 +1,5 @@
+#![allow(clippy::extra_unused_lifetimes)]
+
 use chrono::{DateTime, Utc};
 use diesel::pg::PgConnection;
 use diesel::result::Error;
@@ -10,6 +12,7 @@ use crate::schema::set_tag;
 
 #[derive(Debug, Identifiable, Queryable, QueryableByName)]
 #[table_name = "set_tag"]
+#[allow(dead_code)]
 pub(crate) struct Object {
     id: Uuid,
     tag: Set,

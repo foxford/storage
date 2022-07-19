@@ -1370,18 +1370,18 @@ dependencies = [
 
 [[package]]
 name = "proc-macro-hack"
-version = "0.4.2"
+version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "463bf29e7f11344e58c9e01f171470ab15c925c6822ad75028cc1c0e1d1eb63b"
+checksum = "d7f95648580798cc44ff8efb9bb0d7ee5205ea32e087b31b0732f3e8c2648ee2"
 dependencies = [
  "proc-macro-hack-impl",
 ]
 
 [[package]]
 name = "proc-macro-hack-impl"
-version = "0.4.2"
+version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "38c47dcb1594802de8c02f3b899e2018c78291168a22c281be21ea0fb4796842"
+checksum = "7be55bf0ae1635f4d7c7ddd6efc05c631e98a82104a73d35550bbc52db960027"
 
 [[package]]
 name = "proc-macro2"

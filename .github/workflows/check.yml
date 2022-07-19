@@ -1,0 +1,32 @@
+name: Check
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  ci:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Install latest stable
+      uses: actions-rs/toolchain@v1
+      with:
+          toolchain: stable
+          override: true
+          components: rustfmt, clippy
+    - uses: Swatinem/rust-cache@v1
+    - name: clippy
+      run: cargo clippy -- -D warnings
+    - name: fmt
+      run: cargo fmt -- --check
+    - name: Run tests
+      run: cargo test --verbose 
+      env:
+        RUST_BACKTRACE: 1

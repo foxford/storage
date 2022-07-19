@@ -51,6 +51,7 @@ impl<'de> Visitor<'de> for AllowedOriginsVisitor {
         }
     }
 
+    #[allow(clippy::mutable_key_type)]
     fn visit_seq<A>(self, mut seq: A) -> Result<Self::Value, A::Error>
     where
         A: SeqAccess<'de>,

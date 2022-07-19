@@ -319,12 +319,7 @@ mod tower_web {
                 let config = context.config::<Config>().expect("missing config");
                 let h = context.request().headers().get(http::header::AUTHORIZATION);
                 let q = url::form_urlencoded::parse(
-                    context
-                        .request()
-                        .uri()
-                        .query()
-                        .unwrap_or_else(|| "")
-                        .as_bytes(),
+                    context.request().uri().query().unwrap_or("").as_bytes(),
                 )
                 .find(|(key, _)| key == "access_token")
                 .map(|(_, val)| val);
