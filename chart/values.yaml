@@ -6,7 +6,7 @@ replicaCount: 2
 
 app:
   image:
-    repository: foxford/storage
+    repository: cr.yandex/crp1of6bddata8ain3q5/storage
     tag: ""
 
   resources:
