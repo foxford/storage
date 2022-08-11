@@ -1,5 +1,5 @@
 {{- if .Values.ingress }}
-apiVersion: extensions/v1beta1
+apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: {{ include "storage.fullname" . }}
@@ -20,6 +20,8 @@ spec:
           - path: {{ include "storage.ingressPath" . }}(/|$)(.*)
             pathType: Prefix
             backend:
-              serviceName: {{ include "storage.fullname" . }}-cluster
-              servicePort: {{ .Values.clusterService.ports.http }}
+              service:
+                name: {{ include "storage.fullname" . }}-cluster
+                port:
+                  number: {{ .Values.clusterService.ports.http }}
 {{- end }}
