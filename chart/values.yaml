@@ -47,7 +47,6 @@ app:
     #     key: path/to/public_key.p8.der
     #   authz:
     #     type: http
-    #     url: "https://authz.example.org/api/v1/authz"
     #     trusted:
     #       - dispatcher
 
