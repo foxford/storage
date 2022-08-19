@@ -569,7 +569,7 @@ impl_web! {
 
             match self.aud_estm.estimate(&body.bucket) {
                 Ok(audience) => {
-                    future::Either::B(self.authz.authorize(audience, &sub, zobj, zact).and_then(move |zresp| match zresp {
+                    future::Either::B(self.authz.authorize(audience.to_owned(), &sub, zobj, zact).and_then(move |zresp| match zresp {
                         Err(err) => future::Either::A(wrap_error(error().status(StatusCode::FORBIDDEN).detail(&err.to_string()).build())),
                         Ok(_) => {
                             // URI builder
@@ -716,7 +716,7 @@ pub(crate) fn run(db: Option<ConnectionPool>, cache: Option<Cache>) {
 
     // Authz
     let aud_estm = Arc::new(util::AudienceEstimator::new(&config.authz));
-    let authz = svc_authz::ClientMap::new(&config.id, cache, config.authz.clone())
+    let authz = svc_authz::ClientMap::new(&config.id, cache, config.authz.clone(), None)
         .expect("Error converting authz config to clients");
 
     let object = ObjectState {

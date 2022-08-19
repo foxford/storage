@@ -1,3 +1,4 @@
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
 
 use anyhow::{Context, Result};
@@ -11,7 +12,8 @@ pub(crate) struct Client {
     credentials: AwsCredentials,
     region: Region,
     expires_in: Duration,
-    proxy_host: Option<String>,
+    proxy_host: Option<Vec<String>>,
+    counter: AtomicUsize,
 }
 
 impl Client {
@@ -33,10 +35,11 @@ impl Client {
             region,
             expires_in,
             proxy_host: None,
+            counter: AtomicUsize::new(0),
         }
     }
 
-    pub(crate) fn set_proxy_host(&mut self, host: &str) -> &mut Self {
+    pub(crate) fn set_proxy_hosts(&mut self, host: &[String]) -> &mut Self {
         self.proxy_host = Some(host.to_owned());
         self
     }
@@ -49,11 +52,12 @@ impl Client {
     pub(crate) fn sign_request(&self, req: &mut SignedRequest) -> Result<String> {
         let url = req.generate_presigned_url(&self.credentials, &self.expires_in, false);
 
-        if let Some(ref proxy_host) = self.proxy_host {
+        if let Some(ref proxy_hosts) = self.proxy_host {
             let mut parsed_url = Url::parse(&url).context("failed to parse generated uri")?;
 
+            let idx = self.counter.fetch_add(1, Ordering::Acquire) % proxy_hosts.len();
             parsed_url
-                .set_host(Some(proxy_host))
+                .set_host(proxy_hosts.get(idx).map(|h| h.as_str()))
                 .context("failed to set proxy backend")?;
 
             Ok(parsed_url.to_string())

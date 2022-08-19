@@ -21,7 +21,9 @@ app:
     # default: foo
     # alt:
     #   foo:
-    #     proxyHost: lb.foo.bar
+    #     proxyHosts:
+    #       - lb.foo.bar
+    #       - lb.bar.baz
     #     secret: foo-credentials
 
   svc:

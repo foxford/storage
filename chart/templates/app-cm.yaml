@@ -23,8 +23,12 @@ data:
     default = {{ .Values.app.s3.default | quote }}
     {{- range $key, $value := .Values.app.s3.alt }}
     [backend.alt.{{ $key }}]
-    {{- if $value.proxyHost }}
-    proxy_host = {{ $value.proxyHost | quote }}
+    {{- if $value.proxyHosts }}
+    proxy_hosts = [
+      {{- range $host := $value.proxyHosts }}
+      {{ $host | quote }},
+      {{- end }}
+    ]
     {{- end }}
     {{- end }}
     {{- println "" }}

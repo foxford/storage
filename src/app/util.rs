@@ -23,12 +23,12 @@ pub(crate) struct BackendConfig {
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct AltBackendConfig {
-    proxy_host: Option<String>,
+    proxy_hosts: Option<Vec<String>>,
 }
 
 impl AltBackendConfig {
     fn new() -> Self {
-        AltBackendConfig { proxy_host: None }
+        AltBackendConfig { proxy_hosts: None }
     }
 }
 
@@ -81,8 +81,8 @@ fn read_s3(back: &str, prefix: &str, alt: &AltBackendConfig, acc: &mut S3Clients
         ::std::time::Duration::from_secs(300),
     );
 
-    if let Some(ref proxy_host) = alt.proxy_host {
-        client.set_proxy_host(proxy_host);
+    if let Some(ref proxy_hosts) = alt.proxy_hosts {
+        client.set_proxy_hosts(proxy_hosts);
     }
 
     acc.insert(back.to_owned(), ::std::sync::Arc::new(client));
