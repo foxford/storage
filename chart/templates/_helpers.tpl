@@ -62,6 +62,15 @@ Short namespace.
 {{- end }}
 
 {{/*
+Audience Environment
+*/}}
+{{- define "storage.audienceEnvironment" -}}
+{{- $v := regexReplaceAll "(s)(\\d\\d)" (include "storage.shortNamespace" .) "staging${2}" }}
+{{- $v := regexReplaceAll "(t)(\\d\\d)" $v "testing${2}" }}
+{{- $v }}
+{{- end }}
+
+{{/*
 Namespace in ingress path.
 converts as follows:
 - testing01 -> t01

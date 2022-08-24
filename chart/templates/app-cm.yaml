@@ -6,7 +6,7 @@ metadata:
   name: {{ include "storage.fullname" . }}-app
 data:
   App.toml: |
-    {{- $id := list (include "storage.name" . ) (include "storage.shortNamespace" .) .Values.app.svc.audience | compact | join "." }}
+    {{- $id := list (include "storage.name" . ) (include "storage.audienceEnvironment" .) .Values.app.svc.audience | compact | join "." }}
     id = {{ $id | quote }}
 
     [http]
@@ -34,13 +34,13 @@ data:
     ## SVC
     ##
 
-    {{- $svc_audience := list (include "storage.shortNamespace" $) .audience | compact | join "." }}    
+    {{- $svc_audience := list (include "storage.audienceEnvironment" $) .audience | compact | join "." }}
     [authn.{{ $svc_audience | quote }}]
     audience = [{{ $svc_audience | quote }}]
     algorithm = "ES256"
     key = {{ .authn.key | quote }}
 
-    {{- $ns_audience := list (include "storage.shortNamespace" $) .audience | compact | join "."  }}
+    {{- $ns_audience := list (include "storage.audienceEnvironment" $) .audience | compact | join "."  }}
     {{- println "" }}
 
     {{- with .authz }}
@@ -63,11 +63,11 @@ data:
     {{- $svc_audience := "" }}
     {{- $usr_audience := "" }}
     {{- if regexMatch "(?:talenttech)" .audience }}
-    {{- $svc_audience = list (regexReplaceAll "(^(?:staging|testing)[\\d]*)" (include "storage.shortNamespace" $) "beta") "svc" .audience | compact | join "." }}
-    {{- $usr_audience = list (regexReplaceAll "(^(?:staging|testing)[\\d]*)" (include "storage.shortNamespace" $) "beta") "usr" .audience | compact | join "." }}
+    {{- $svc_audience = list (regexReplaceAll "(^(?:staging|testing)[\\d]*)" (include "storage.audienceEnvironment" $) "beta") "svc" .audience | compact | join "." }}
+    {{- $usr_audience = list (regexReplaceAll "(^(?:staging|testing)[\\d]*)" (include "storage.audienceEnvironment" $) "beta") "usr" .audience | compact | join "." }}
     {{- else }}
-    {{- $svc_audience = list (include "storage.shortNamespace" $) "svc" .audience | compact | join "." }}
-    {{- $usr_audience = list (include "storage.shortNamespace" $) "usr" .audience | compact | join "." }}
+    {{- $svc_audience = list (include "storage.audienceEnvironment" $) "svc" .audience | compact | join "." }}
+    {{- $usr_audience = list (include "storage.audienceEnvironment" $) "usr" .audience | compact | join "." }}
     {{- end }}
     {{- with .authn }}
     [authn.{{ list "iam" $svc_audience | join "." | quote }}]
@@ -78,9 +78,9 @@ data:
 
     {{- $ns_audience := "" }}
     {{- if regexMatch "(?:talenttech)" .audience }}
-    {{- $ns_audience = list (regexReplaceAll "(^(?:staging|testing)[\\d]*)" (include "storage.shortNamespace" $) "beta") .audience | compact | join "."  }}
+    {{- $ns_audience = list (regexReplaceAll "(^(?:staging|testing)[\\d]*)" (include "storage.audienceEnvironment" $) "beta") .audience | compact | join "."  }}
     {{- else }}
-    {{- $ns_audience = list (include "storage.shortNamespace" $) .audience | compact | join "."  }}
+    {{- $ns_audience = list (include "storage.audienceEnvironment" $) .audience | compact | join "."  }}
     {{- end }}
     {{- println "" }}
 
@@ -95,7 +95,7 @@ data:
     {{- if .trusted }}
     trusted = [
       {{- range $account_label := .trusted }}
-        {{ (list $account_label (include "storage.shortNamespace" $) $.Values.app.svc.audience) | compact | join "." | quote }},
+        {{ (list $account_label (include "storage.audienceEnvironment" $) $.Values.app.svc.audience) | compact | join "." | quote }},
       {{- end }}
     ]
     {{- end }}
