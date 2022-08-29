@@ -23,7 +23,7 @@ pub(crate) struct BackendConfig {
 
 #[derive(Debug, Deserialize)]
 pub(crate) struct AltBackendConfig {
-    proxy_hosts: Option<Vec<String>>,
+    proxy_hosts: Option<Vec<ProxyHost>>,
 }
 
 impl AltBackendConfig {
