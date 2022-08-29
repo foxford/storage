@@ -22,8 +22,11 @@ app:
     # alt:
     #   foo:
     #     proxyHosts:
-    #       - lb.foo.bar
-    #       - lb.bar.baz
+            # produces single host
+    #       - base: lb.foo.bar
+            # produces 10 hosts {1,10}.lb.bar.baz
+    #       - base: lb.bar.baz
+    #         aliasRangeUpperBound: 10
     #     secret: foo-credentials
 
   svc:

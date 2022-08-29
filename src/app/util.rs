@@ -32,6 +32,12 @@ impl AltBackendConfig {
     }
 }
 
+#[derive(Debug, Deserialize)]
+pub(crate) struct ProxyHost {
+    pub base: String,
+    pub alias_range_upper_bound: Option<usize>,
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 pub(crate) fn read_s3_config(config: Option<&BackendConfig>) -> anyhow::Result<S3Clients> {
