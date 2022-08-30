@@ -22,12 +22,17 @@ data:
     [backend]
     default = {{ .Values.app.s3.default | quote }}
     {{- range $key, $value := .Values.app.s3.alt }}
+    [backend.alt.{{ $key }}]
+    {{- if $value.proxyHost }}
+    proxy_host = {{ $value.proxyHost | quote }}
+    {{- end }}
+
     {{- if $value.proxyHosts }}
     {{- range $host := $value.proxyHosts }}
     [[backend.alt.{{ $key }}.proxy_hosts]]
     base = {{ $host.base | quote }}
     {{- if $host.aliasRangeUpperBound }}
-    alias_range_upper_bound = $host.aliasRangeUpperBound
+    alias_range_upper_bound = {{ $host.aliasRangeUpperBound }}
     {{- end }}
     {{- end }}
     {{- end }}
