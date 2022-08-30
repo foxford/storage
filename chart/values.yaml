@@ -17,7 +17,7 @@ app:
       cpu: 0.01
       memory: 100Mi
 
-  s3:
+  s3: {}
     # default: foo
     # alt:
     #   foo:
@@ -29,7 +29,7 @@ app:
     #         aliasRangeUpperBound: 10
     #     secret: foo-credentials
 
-  svc:
+  svc: {}
     # audience: foo.bar
     # credentials:
     #   svc-pkcs8-der-credentials:
@@ -42,7 +42,7 @@ app:
     # authz:
     #   type: local
 
-  audiences:
+  audiences: {}
     # - audience: foo.bar
     #   credentials:
     #     foobar-der-credentials:

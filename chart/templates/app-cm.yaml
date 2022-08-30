@@ -6,7 +6,8 @@ metadata:
   name: {{ include "storage.fullname" . }}-app
 data:
   App.toml: |
-    {{- $id := list (include "storage.name" . ) (include "storage.audienceEnvironment" .) .Values.app.svc.audience | compact | join "." }}
+    {{- $svcDict := .Values.app.svc | default dict }}
+    {{- $id := list (include "storage.name" . ) (include "storage.audienceEnvironment" .) $svcDict.audience | compact | join "." }}
     id = {{ $id | quote }}
 
     [http]
