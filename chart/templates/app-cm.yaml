@@ -32,7 +32,7 @@ data:
     [[backend.alt.{{ $key }}.proxy_hosts]]
     base = {{ $host.base | quote }}
     {{- if $host.aliasRangeUpperBound }}
-    alias_range_upper_bound = $host.aliasRangeUpperBound
+    alias_range_upper_bound = {{ $host.aliasRangeUpperBound }}
     {{- end }}
     {{- end }}
     {{- end }}
