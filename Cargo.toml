@@ -18,7 +18,7 @@ rusoto_s3 = "0.40"
 uuid = { version = "0.6", features = ["v4"] }
 chrono = "0.4"
 openssl = "*"
-diesel = { version = "1.4", features = ["postgres", "uuid", "chrono", "r2d2"] }
+diesel = { version = "2.0", features = ["postgres", "uuid", "chrono", "r2d2"] }
 tower-web = "0.3"
 http = "0.1"
 url = "1.7"
