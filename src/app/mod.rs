@@ -658,6 +658,7 @@ fn s3_object(set: &str, object: &str) -> String {
 fn redirect(uri: &str) -> Response<&'static str> {
     Response::builder()
         .header("location", uri)
+        .header("Timing-Allow-Origin", "*")
         .status(StatusCode::SEE_OTHER)
         .body("")
         .unwrap()
