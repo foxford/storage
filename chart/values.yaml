@@ -42,7 +42,7 @@ app:
     # authz:
     #   type: local
 
-  audiences: {}
+  audiences: []
     # - audience: foo.bar
     #   credentials:
     #     foobar-der-credentials:
