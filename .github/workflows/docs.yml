@@ -13,7 +13,7 @@ jobs:
       run: sudo apt update && sudo apt install -y awscli
     - name: Install mdbook
       run: curl -fsSL https://github.com/rust-lang/mdBook/releases/download/v0.4.18/mdbook-v0.4.18-x86_64-unknown-linux-gnu.tar.gz | sudo tar -xz --directory /usr/local/bin
-    - uses: Swatinem/rust-cache@v1
+    - uses: Swatinem/rust-cache@v2
     - name: Install mdbook-mermaid
       run: cargo install mdbook-mermaid
     - name: Build
