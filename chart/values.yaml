@@ -10,9 +10,6 @@ app:
     tag: ""
 
   resources:
-    limits:
-      cpu: 0.2
-      memory: 300Mi
     requests:
       cpu: 0.01
       memory: 100Mi
