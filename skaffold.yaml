@@ -17,7 +17,7 @@ deploy:
       - name: "{{ .PROJECT }}"
         chartPath: chart
         artifactOverrides:
-          app.image.repository: cr.yandex/crp1of6bddata8ain3q5/storage
+          app.image: cr.yandex/crp1of6bddata8ain3q5/storage
         imageStrategy:
           helm: {}
         valuesFiles:
