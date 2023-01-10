@@ -1,0 +1,43 @@
+app:
+  s3:
+    default: yandex
+    alt:
+      yandex:
+        secret: yandex-storage-credentials
+        proxyHost: storage-lb.test.net
+        # new config version
+        proxyHosts:
+          - base: storage-lb.test.net
+  svc:
+    audience: svc.test.net
+    credentials:
+      svc-pkcs8-der-credentials:
+        - subPath: svc.private_key
+          mountPath: /app/data/keys/svc.private_key.p8.der
+        - subPath: svc.public_key
+          mountPath: /app/data/keys/svc.public_key.p8.der
+    authn:
+      key: /app/data/keys/svc.public_key.p8.der
+    authz:
+      type: local
+      trusted:
+        - tq
+  audiences:
+    - audience: foo.bar
+      credentials:
+        foo-pkcs8-der-credentials:
+          - subPath: iam.foo.public_key
+            mountPath: /app/data/keys/iam.foo.public_key.p8.der
+      authn:
+        key: /app/data/keys/iam.foo.public_key.p8.der
+      authz:
+        type: http
+      allowedReferers:
+        - "test.net"
+        - "*.test.net"
+        - "foo.bar"
+        - "*.foo.bar"
+ingress:
+  host: test.net
+legacyIngress:
+  host: example.org
