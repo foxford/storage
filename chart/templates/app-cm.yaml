@@ -44,25 +44,19 @@ data:
     ##
     ## SVC
     ##
-
-    {{- $svc_audience := list .audience | compact | join "." }}
-    [authn.{{ $svc_audience | quote }}]
-    audience = [{{ $svc_audience | quote }}]
+    [authn.{{ .audience | quote }}]
+    audience = [{{ .audience | quote }}]
     algorithm = "ES256"
     key = {{ .authn.key | quote }}
 
-    {{- $ns_audience := list .audience | compact | join "."  }}
     {{- println "" }}
-
-    {{- with .authz }}
-    [authz.{{ $ns_audience | quote }}]
-    type = {{ .type | quote }}
+    [authz.{{ .audience | quote }}]
+    type = {{ .authz.type | quote }}
     trusted = [
-      {{- range $account_label := .trusted }}
-        {{ $ns_audience | list $account_label | join "." | quote }},
+      {{- range $accountLabel := .authz.trusted }}
+        {{ list $accountLabel $.Values.app.svc.audience | join "." | quote }},
       {{- end }}
     ]
-    {{- end }}
     {{- end }}
 
     {{- println "" }}
@@ -70,42 +64,42 @@ data:
     ##
     ## {{ .audience }}
     ##
+    {{- $tenantServiceAudience := include "storage.tenantServiceAudience" .audience }}
+    {{- $tenantUserAudience := include "storage.tenantUserAudience" .audience }}
+    {{- $tenantObjectAudience := "" }}
+    {{- if regexMatch "(?:talenttech)" .audience }}
+    {{- $tenantObjectAudience = regexReplaceAll "(^(?:staging|testing)[\\d]*)" (include "storage.tenantObjectAudience" (list $.Release.Namespace .audience)) "beta" }}
+    {{- else }}
+    {{- $tenantObjectAudience = include "storage.tenantObjectAudience" (list $.Release.Namespace .audience) }}
+    {{- end -}}
 
-    {{- $svc_audience := list "svc" .audience | compact | join "." }}
-    {{- $usr_audience := list "usr" .audience | compact | join "." }}
     {{- with .authn }}
-    [authn.{{ list "iam" $svc_audience | join "." | quote }}]
-    audience = [{{ $svc_audience | quote }}, {{ $usr_audience | quote }}]
+    [authn.{{ list "iam" $tenantServiceAudience | join "." | quote }}]
+    audience = [{{ $tenantServiceAudience | quote }}, {{ $tenantUserAudience | quote }}]
     algorithm = {{ default "ES256" .algorithm | quote }}
     key = {{ .key | quote }}
     {{- end }}
 
-    {{- $ns_audience := "" }}
-    {{- if regexMatch "(?:talenttech)" .audience }}
-    {{- $ns_audience = list (regexReplaceAll "(^(?:staging|testing)[\\d]*)" (include "storage.audienceEnvironment" $) "beta") .audience | compact | join "."  }}
-    {{- else }}
-    {{- $ns_audience = list (include "storage.audienceEnvironment" $) .audience | compact | join "."  }}
-    {{- end }}
     {{- println "" }}
 
     {{- with .authz }}
-    [authz.{{ $ns_audience | quote }}]
+    [authz.{{ $tenantObjectAudience | quote }}]
     type = {{ .type | quote }}
     {{- if eq "http" .type }}
-    {{- $default_authz_url := $ns_audience | list "http://dispatcher-cluster:8080/api/v1/authz/" | join "" }}
-    uri = {{ default $default_authz_url .uri | quote }}
+    {{- $defaultAuthzUrl := list "http://dispatcher-cluster:8080/api/v1/authz/" $tenantObjectAudience | join "" }}
+    uri = {{ default $defaultAuthzUrl .uri | quote }}
     algorithm = {{ default "ES256" .algorithm | quote }}
     key = {{ default "data/keys/svc.private_key.p8.der" .key | quote }}
     {{- if .trusted }}
     trusted = [
-      {{- range $account_label := .trusted }}
-        {{ (list $account_label $.Values.app.svc.audience) | compact | join "." | quote }},
+      {{- range $accountLabel := .trusted }}
+        {{ (list $accountLabel $.Values.app.svc.audience) | compact | join "." | quote }},
       {{- end }}
     ]
     {{- end }}
     {{- end }}
     {{- if eq "localwhitelist" .type }}
-    [[authz.{{ $ns_audience | quote }}.records]]
+    [[authz.{{ $tenantObjectAudience | quote }}.records]]
     {{- range $record := .records }}
     subject_account_id = {{ get $record "subject_account_id" | quote }}
     object = [
@@ -118,7 +112,7 @@ data:
     {{- end }}
     {{- end }}
 
-    [audiences_settings.{{ $ns_audience | quote }}]
+    [audiences_settings.{{ $tenantObjectAudience | quote }}]
     {{- if .allowedReferers}}
     allowed_referers = [ 
     {{- range $referer := .allowedReferers }}

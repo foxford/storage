@@ -14,44 +14,6 @@ app:
       cpu: 0.01
       memory: 100Mi
 
-  s3: {}
-    # default: foo
-    # alt:
-    #   foo:
-    #     proxyHosts:
-            # produces single host
-    #       - base: lb.foo.bar
-            # produces 10 hosts {1,10}.lb.bar.baz
-    #       - base: lb.bar.baz
-    #         aliasRangeUpperBound: 10
-    #     secret: foo-credentials
-
-  svc: {}
-    # audience: foo.bar
-    # credentials:
-    #   svc-pkcs8-der-credentials:
-    #     - subPath: svc.private_key
-    #       mountPath: /app/data/keys/svc.private_key.p8.der
-    #     - subPath: svc.public_key
-    #       mountPath: /app/data/keys/svc.public_key.p8.der
-    # authn:
-    #   key: /app/data/keys/svc.public_key.p8.der
-    # authz:
-    #   type: local
-
-  audiences: []
-    # - audience: foo.bar
-    #   credentials:
-    #     foobar-der-credentials:
-    #       - subPath: foobar-public-key
-    #         mountPath: /path/to/foobar/public/key
-    #   authn:
-    #     key: path/to/public_key.p8.der
-    #   authz:
-    #     type: http
-    #     trusted:
-    #       - dispatcher
-
 env:
   RUST_LOG: info
   CACHE_ENABLED: 0
@@ -66,9 +28,3 @@ clusterService:
 
 tls:
   secretName: tls-certificates
-
-# ingress:
-#   host: example.org
-
-# legacyIngress:
-#   host: example.org
