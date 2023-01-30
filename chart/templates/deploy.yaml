@@ -6,6 +6,7 @@ metadata:
     {{- include "storage.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.replicaCount }}
+  minReadySeconds: {{ .Values.minReadySeconds }}
   selector:
     matchLabels:
       {{- include "storage.selectorLabels" . | nindent 6 }}
