@@ -21,7 +21,7 @@ spec:
         - name: regcred
       containers:
         - name: storage
-          image: "{{ .Values.app.image.repository }}:{{ .Values.app.image.tag | default .Chart.AppVersion }}"
+          image: "{{ .Values.app.image.repository }}:{{ .Values.app.image.tag }}"
           ports:
             - containerPort: {{ .Values.clusterService.ports.http }}
           volumeMounts:
