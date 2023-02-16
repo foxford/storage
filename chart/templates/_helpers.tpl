@@ -35,9 +35,7 @@ Common labels
 */}} # TODO
 {{- define "storage.labels" -}}
 helm.sh/chart: {{ include "storage.chart" . }}
-{{- if .Chart.AppVersion }}
-app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
-{{- end }}
+app.kubernetes.io/version: {{ .Values.app.image.tag | quote }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{ include "storage.selectorLabels" . }}
 {{- end }}

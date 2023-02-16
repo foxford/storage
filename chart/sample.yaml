@@ -1,4 +1,6 @@
 app:
+  image:
+    tag: "1.2.3"
   s3:
     default: yandex
     alt:
