@@ -106,6 +106,12 @@ spec:
             {{- end }}
           resources:
             {{- toYaml .Values.app.resources | nindent 12 }}
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: {{ .Values.clusterService.ports.http }}
+            failureThreshold: 10
+            periodSeconds: 3
       volumes:
         - name: config
           configMap:
