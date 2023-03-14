@@ -19,6 +19,10 @@ spec:
     spec:
       imagePullSecrets:
         - name: regcred
+      initContainers:
+        - image: "{{ .Values.networkTester.image.repository }}:{{ .Values.networkTester.image.tag }}"
+          imagePullPolicy: IfNotPresent
+          name: network-tester
       containers:
         - name: storage
           image: "{{ .Values.app.image.repository }}:{{ .Values.app.image.tag }}"
@@ -112,6 +116,10 @@ spec:
               port: {{ .Values.clusterService.ports.http }}
             failureThreshold: 10
             periodSeconds: 3
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sleep", "{{ .Values.preStopSleepSeconds }}"]
       volumes:
         - name: config
           configMap:
