@@ -40,6 +40,8 @@ app:
         - "foo.bar"
         - "*.foo.bar"
 ingress:
+  class: nginx
   host: test.net
 legacyIngress:
+  class: nginx
   host: example.org
