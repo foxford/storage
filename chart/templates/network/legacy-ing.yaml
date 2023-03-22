@@ -3,11 +3,10 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: {{ include "storage.fullname" . }}-legacy
-  annotations:
-    kubernetes.io/ingress.class: nginx
   labels:
     {{- include "storage.labels" . | nindent 4 }}
 spec:
+  ingressClassName: {{ .Values.legacyIngress.class | quote }}
   tls:
     - hosts:
         - {{ .Values.legacyIngress.host | quote }}
