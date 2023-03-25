@@ -13,7 +13,7 @@ serde = "1.0"
 serde_derive = "1.0"
 futures = "0.1"
 radix_trie = "0.1"
-rusoto_core = "0.40"
+rusoto_core = "0.45"
 rusoto_s3 = "0.40"
 uuid = { version = "0.6", features = ["v4"] }
 chrono = "0.4"
