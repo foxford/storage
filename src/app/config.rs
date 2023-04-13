@@ -58,8 +58,8 @@ mod tests {
         let s = AudienceSettings {
             allowed_referers: None,
         };
-        assert_eq!(s.valid_referer(None), true);
-        assert_eq!(s.valid_referer(Some("foobar")), true);
+        assert!(s.valid_referer(None));
+        assert!(s.valid_referer(Some("foobar")));
     }
 
     #[test]
@@ -67,10 +67,10 @@ mod tests {
         let s = AudienceSettings {
             allowed_referers: Some(vec!["foo".into(), "bar".into(), "baz".into()]),
         };
-        assert_eq!(s.valid_referer(None), false);
-        assert_eq!(s.valid_referer(Some("http://foo")), true);
-        assert_eq!(s.valid_referer(Some("https://foo")), true);
-        assert_eq!(s.valid_referer(Some("https://quux")), false);
+        assert!(!s.valid_referer(None));
+        assert!(s.valid_referer(Some("http://foo")));
+        assert!(s.valid_referer(Some("https://foo")));
+        assert!(!s.valid_referer(Some("https://quux")));
     }
 
     #[test]
@@ -78,10 +78,10 @@ mod tests {
         let s = AudienceSettings {
             allowed_referers: Some(vec!["*.foo".into()]),
         };
-        assert_eq!(s.valid_referer(None), false);
-        assert_eq!(s.valid_referer(Some("http://baz.foo")), true);
-        assert_eq!(s.valid_referer(Some("https://bar.foo")), true);
-        assert_eq!(s.valid_referer(Some("http://qwe.quux")), false);
-        assert_eq!(s.valid_referer(Some("http://foo")), false);
+        assert!(!s.valid_referer(None));
+        assert!(s.valid_referer(Some("http://baz.foo")));
+        assert!(s.valid_referer(Some("https://bar.foo")));
+        assert!(!s.valid_referer(Some("http://qwe.quux")));
+        assert!(!s.valid_referer(Some("http://foo")));
     }
 }
