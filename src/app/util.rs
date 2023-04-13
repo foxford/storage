@@ -70,13 +70,13 @@ pub(crate) fn read_s3_config(config: Option<&BackendConfig>) -> anyhow::Result<S
 
 fn read_s3(back: &str, prefix: &str, alt: &AltBackendConfig, acc: &mut S3Clients) {
     use std::env::var;
-    let key = var(&format!("{}AWS_ACCESS_KEY_ID", prefix))
+    let key = var(format!("{}AWS_ACCESS_KEY_ID", prefix))
         .unwrap_or_else(|_| panic!("{}AWS_ACCESS_KEY_ID must be specified", prefix));
-    let secret = var(&format!("{}AWS_SECRET_ACCESS_KEY", prefix))
+    let secret = var(format!("{}AWS_SECRET_ACCESS_KEY", prefix))
         .unwrap_or_else(|_| panic!("{}AWS_SECRET_ACCESS_KEY must be specified", prefix));
-    let endpoint = var(&format!("{}AWS_ENDPOINT", prefix))
+    let endpoint = var(format!("{}AWS_ENDPOINT", prefix))
         .unwrap_or_else(|_| panic!("{}AWS_ENDPOINT must be specified", prefix));
-    let region = var(&format!("{}AWS_REGION", prefix))
+    let region = var(format!("{}AWS_REGION", prefix))
         .unwrap_or_else(|_| panic!("{}AWS_REGION must be specified", prefix));
 
     let mut client = crate::s3::Client::new(
