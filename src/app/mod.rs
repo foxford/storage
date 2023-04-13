@@ -694,6 +694,7 @@ pub(crate) fn run(db: Option<ConnectionPool>, cache: Option<Cache>) {
         header::IF_NONE_MATCH,
         header::IF_UNMODIFIED_SINCE,
         header::RANGE,
+        header::HeaderName::from_static("x-request-type"),
     ]
     .iter()
     .cloned()
