@@ -1,11 +1,3 @@
-pub mod config;
-pub mod context;
-mod endpoints;
-pub mod http;
-pub mod util;
-
-/*
-
 use anyhow::format_err;
 use futures::{future, Future};
 use http::{Response, StatusCode};
@@ -372,6 +364,3 @@ pub fn run(db: Option<ConnectionPool>, cache: Option<RedisCache>) {
 
 mod config;
 pub mod util;
-
-
- */

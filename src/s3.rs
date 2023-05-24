@@ -10,7 +10,7 @@ use url::Url;
 use crate::app::util::ProxyHost;
 
 #[derive(Debug)]
-pub(crate) struct Client {
+pub struct Client {
     credentials: AwsCredentials,
     region: Region,
     expires_in: Duration,
@@ -19,7 +19,7 @@ pub(crate) struct Client {
 }
 
 impl Client {
-    pub(crate) fn new(
+    pub fn new(
         key: &str,
         secret: &str,
         region: &str,
@@ -41,7 +41,7 @@ impl Client {
         }
     }
 
-    pub(crate) fn set_proxy_hosts(&mut self, hosts: &[ProxyHost]) -> &mut Self {
+    pub fn set_proxy_hosts(&mut self, hosts: &[ProxyHost]) -> &mut Self {
         let mut resulting_hosts = Vec::new();
 
         for host in hosts {
@@ -61,12 +61,12 @@ impl Client {
         self
     }
 
-    pub(crate) fn create_request(&self, method: &str, bucket: &str, object: &str) -> SignedRequest {
+    pub fn create_request(&self, method: &str, bucket: &str, object: &str) -> SignedRequest {
         let uri = format!("/{bucket}/{object}", bucket = bucket, object = object);
         SignedRequest::new(method, "s3", &self.region, &uri)
     }
 
-    pub(crate) fn sign_request(&self, req: &mut SignedRequest) -> Result<String> {
+    pub fn sign_request(&self, req: &mut SignedRequest) -> Result<String> {
         let url = req.generate_presigned_url(&self.credentials, &self.expires_in, false);
 
         if let Some(ref proxy_hosts) = self.proxy_hosts {
@@ -83,7 +83,7 @@ impl Client {
         }
     }
 
-    pub(crate) fn presigned_url(&self, method: &str, bucket: &str, object: &str) -> Result<String> {
+    pub fn presigned_url(&self, method: &str, bucket: &str, object: &str) -> Result<String> {
         self.sign_request(&mut self.create_request(method, bucket, object))
     }
 }

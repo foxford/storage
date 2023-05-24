@@ -6,9 +6,9 @@ use std::time::Duration;
 
 ////////////////////////////////////////////////////////////////////////////////
 
-pub(crate) type ConnectionPool = Arc<Pool<ConnectionManager<PgConnection>>>;
+pub type ConnectionPool = Arc<Pool<ConnectionManager<PgConnection>>>;
 
-pub(crate) fn create_pool(url: &str, size: u32, timeout: u64) -> ConnectionPool {
+pub fn create_pool(url: &str, size: u32, timeout: u64) -> ConnectionPool {
     let manager = ConnectionManager::<PgConnection>::new(url);
     let pool = Pool::builder()
         .max_size(size)
@@ -23,20 +23,20 @@ pub(crate) fn create_pool(url: &str, size: u32, timeout: u64) -> ConnectionPool 
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, FromSqlRow, AsExpression)]
 #[sql_type = "sql::Bucket"]
-pub(crate) struct Bucket {
+pub struct Bucket {
     label: String,
     audience: String,
 }
 
 impl Bucket {
-    pub(crate) fn new(label: &str, audience: &str) -> Self {
+    pub fn new(label: &str, audience: &str) -> Self {
         Self {
             label: label.to_owned(),
             audience: audience.to_owned(),
         }
     }
 
-    pub(crate) fn audience(&self) -> &str {
+    pub fn audience(&self) -> &str {
         &self.audience
     }
 }
@@ -51,24 +51,24 @@ impl fmt::Display for Bucket {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, FromSqlRow, AsExpression)]
 #[sql_type = "sql::Set"]
-pub(crate) struct Set {
+pub struct Set {
     label: String,
     bucket: Bucket,
 }
 
 impl Set {
-    pub(crate) fn new(label: &str, bucket: Bucket) -> Self {
+    pub fn new(label: &str, bucket: Bucket) -> Self {
         Self {
             label: label.to_owned(),
             bucket,
         }
     }
 
-    pub(crate) fn label(&self) -> &str {
+    pub fn label(&self) -> &str {
         &self.label
     }
 
-    pub(crate) fn bucket(&self) -> &Bucket {
+    pub fn bucket(&self) -> &Bucket {
         &self.bucket
     }
 }
@@ -126,5 +126,3 @@ pub mod sql {
         }
     }
 }
-
-pub(crate) mod tag;
