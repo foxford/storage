@@ -1,3 +1,4 @@
+mod authz;
 pub mod config;
 pub mod context;
 mod endpoints;

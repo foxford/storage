@@ -7,9 +7,8 @@ use svc_authz::{
 
 use crate::app::{
     config::{AppConfig, AudienceSettings},
-    util::{read_s3_config, AudienceEstimator, S3Clients, Subject},
+    util::{read_s3_config, AudienceEstimator, S3Clients},
 };
-use crate::db::ConnectionPool;
 
 const MAX_LIMIT: i64 = 25;
 
@@ -17,11 +16,11 @@ type S3ClientRef = Arc<S3Clients>;
 
 #[derive(Clone)]
 pub struct AppContext {
-    application_id: AccountId,
-    authz: svc_authz::ClientMap,
-    aud_estm: Arc<AudienceEstimator>,
-    s3: S3ClientRef,
-    audiences_settings: BTreeMap<String, AudienceSettings>,
+    pub application_id: AccountId,
+    pub authz: ClientMap,
+    pub aud_estm: Arc<AudienceEstimator>,
+    pub s3: S3ClientRef,
+    pub audiences_settings: BTreeMap<String, AudienceSettings>,
 }
 
 impl AppContext {
