@@ -1,7 +1,12 @@
 use anyhow::{anyhow, Result};
 use radix_trie::Trie;
 use serde::{Deserialize, Serialize};
-use std::{collections::BTreeMap, fmt, ops::Deref, sync::Arc};
+use std::{
+    collections::{BTreeMap, HashMap},
+    fmt,
+    ops::Deref,
+    sync::Arc,
+};
 use svc_authn::{AccountId, Authenticable};
 
 use crate::s3::Client;
@@ -17,7 +22,7 @@ pub struct BackendConfig(BTreeMap<String, BackendConfigItem>);
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct BackendConfigItem {
-    proxy_hosts: Option<Vec<ProxyHost>>,
+    proxy_hosts: Option<HashMap<String, ProxyHost>>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -111,7 +116,7 @@ impl S3SignedRequestBuilder {
         Self { headers, ..self }
     }
 
-    pub fn build(self, client: &Client) -> Result<String> {
+    pub fn build(self, client: &Client, country: Option<String>) -> Result<String> {
         let mut req = client.create_request(
             &self
                 .method
@@ -128,7 +133,7 @@ impl S3SignedRequestBuilder {
         }
 
         client
-            .sign_request(&mut req)
+            .sign_request(&mut req, country)
             .map_err(|err| anyhow!("Error building a signed request. {}", &err.to_string()))
     }
 }
@@ -275,5 +280,46 @@ mod jose {
         fn from(value: Claims<String>) -> Self {
             Self::new(AccountId::new(value.subject(), value.audience()))
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::app::util::{read_s3_config, BackendConfig, BackendConfigItem, ProxyHost};
+    use std::collections::{BTreeMap, HashMap};
+
+    #[test]
+    fn read_s3_config_test() {
+        let mut hosts = HashMap::new();
+        let ua_host = ProxyHost {
+            base: "ua.example.org".to_string(),
+            alias_range_upper_bound: Some(2),
+        };
+        hosts.insert("ua".to_string(), ua_host);
+
+        let es_host = ProxyHost {
+            base: "es.example.org".to_string(),
+            alias_range_upper_bound: None,
+        };
+        hosts.insert("es".to_string(), es_host);
+
+        let item_with_proxy = BackendConfigItem {
+            proxy_hosts: Some(hosts),
+        };
+
+        let item_without_proxy = BackendConfigItem { proxy_hosts: None };
+
+        let mut config = BTreeMap::new();
+        config.insert("yandex".to_string(), item_with_proxy);
+        config.insert("amazon".to_string(), item_without_proxy);
+
+        for backend in ["yandex", "amazon"] {
+            for var in ["ACCESS_KEY_ID", "SECRET_ACCESS_KEY", "ENDPOINT", "REGION"] {
+                std::env::set_var(format!("{}_AWS_{}", backend.to_uppercase(), var), "test");
+            }
+        }
+
+        let s3_clients = read_s3_config(&BackendConfig(config)).expect("s3 clients");
+        assert_eq!(s3_clients.len(), 2);
     }
 }

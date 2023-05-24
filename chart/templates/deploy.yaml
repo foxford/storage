@@ -19,6 +19,47 @@ spec:
     spec:
       imagePullSecrets:
         - name: regcred
+      initContainers:
+        - image: "{{ .Values.networkTester.image.repository }}:{{ .Values.networkTester.image.tag }}"
+          imagePullPolicy: IfNotPresent
+          name: network-tester
+        {{- if .Values.maxmind }}
+        - image: amazon/aws-cli:2.11
+          imagePullPolicy: IfNotPresent
+          name: maxminddb-download
+          command: ["/bin/sh"]
+          args: >
+            -c
+            aws s3 cp --endpoint="${AWS_ENDPOINT}" --only-show-errors {{ .Values.maxmind.path }} maxmind.tar.gz;
+            tar -xf ./maxmind.tar.gz;
+            cp `find . -type f -name "*.mmdb"` /maxmind/maxmind.mmdb;
+          volumeMounts:
+          - name: maxmind
+            mountPath: "/maxmind"
+          env:
+            {{- range $key, $value := .Values.app.s3 }}
+            - name: AWS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $value.secret }}
+                  key: key
+            - name: AWS_SECRET_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $value.secret }}
+                  key: secret
+            - name: AWS_ENDPOINT
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $value.secret }}
+                  key: endpoint
+            - name: AWS_REGION
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $value.secret }}
+                  key: region 
+            {{- end }}
+        {{- end }}
       containers:
         - name: storage
           image: "{{ .Values.app.image.repository }}:{{ .Values.app.image.tag }}"
@@ -28,6 +69,11 @@ spec:
             - name: config
               mountPath: /app/App.toml
               subPath: App.toml
+            {{- if .Values.maxmind }}
+            - name: maxmind
+              mountPath: /app/maxmind.mmdb
+              subPath: maxmind.mmdb
+            {{- end }}
             {{- with .Values.app.svc }}
             {{- $audience := .audience }}
             {{- range $secret, $mounts := .credentials }}
@@ -95,6 +141,10 @@ spec:
               exec:
                 command: ["sleep", "{{ .Values.preStopSleepSeconds }}"]
       volumes:
+        {{- if .Values.maxmind }}
+        - name: maxmind
+          emptyDir: {}
+        {{- end }}
         - name: config
           configMap:
             name: {{ include "storage.fullname" . }}-app

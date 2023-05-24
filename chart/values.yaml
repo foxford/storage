@@ -17,6 +17,7 @@ app:
       memory: 50Mi
     limits:
       memory: 100Mi
+  s3: {}
 
 env:
   RUST_LOG: warn,storage=info,svc_utils=info,svc_utils::metrics=warn
@@ -32,3 +33,5 @@ clusterService:
 
 tls:
   secretName: tls-certificates
+
+maxmind: {}
