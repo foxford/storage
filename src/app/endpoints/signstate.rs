@@ -58,13 +58,13 @@ async fn sign_ns(
         }
     }
 
-    let zobj = AuthzObject::new(&vec!["sets", &body.set]);
+    let zobj = AuthzObject::new(&["sets", &body.set]);
     let zact = match parse_action(&body.method) {
         Ok(val) => val,
         Err(err) => {
             return wrap_error(
                 StatusCode::FORBIDDEN,
-                format!("Error signing a request: {}", err.to_string()),
+                format!("Error signing a request: {}", err),
             )
         }
     };
@@ -93,7 +93,7 @@ async fn sign_ns(
             {
                 Err(err) => wrap_error(
                     StatusCode::FORBIDDEN,
-                    format!("Error signing a request: {}", err.to_string()),
+                    format!("Error signing a request: {}", err),
                 ),
                 Ok(_) => {
                     // URI builder
@@ -117,7 +117,7 @@ async fn sign_ns(
                             .unwrap(),
                         Err(err) => wrap_error(
                             StatusCode::INTERNAL_SERVER_ERROR,
-                            format!("Error signing a request: {}", err.to_string()),
+                            format!("Error signing a request: {}", err),
                         ),
                     }
                 }
@@ -125,7 +125,7 @@ async fn sign_ns(
         }
         Err(err) => wrap_error(
             StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Error signing a request: {}", err.to_string()),
+            format!("Error signing a request: {}", err),
         ),
     }
 }

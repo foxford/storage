@@ -15,7 +15,7 @@ pub fn valid_referer(
             Err(err) => {
                 return Err(wrap_error(
                     StatusCode::BAD_REQUEST,
-                    format!("Error reading 'REFERER' header: {}", err.to_string()),
+                    format!("Error reading 'REFERER' header: {}", err),
                 ))
             }
         },
@@ -23,7 +23,7 @@ pub fn valid_referer(
 
     match ctx.aud_estm.estimate(bucket) {
         Ok(aud) => match ctx.audiences_settings.get(aud) {
-            Some(aud_settings) => if !aud_settings.valid_referer(referer.as_deref()) {
+            Some(aud_settings) => if !aud_settings.valid_referer(referer) {
                 return Err(wrap_error(
                     StatusCode::FORBIDDEN,
                     "Error reading an object using Set API: Invalid request".to_string(),

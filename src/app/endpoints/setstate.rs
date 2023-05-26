@@ -41,7 +41,7 @@ async fn read_ns(
     sub: AccountId,
     referer: Option<&HeaderValue>,
 ) -> Response<String> {
-    let zobj = AuthzObject::new(&vec!["sets", &set]);
+    let zobj = AuthzObject::new(&["sets", &set]);
     let zact = "read";
     let s3 = match ctx.s3.get(&back) {
         Some(val) => val.clone(),
@@ -74,7 +74,7 @@ async fn read_ns(
             {
                 Err(err) => wrap_error(
                     StatusCode::FORBIDDEN,
-                    format!("Error reading an object by set: {}", err.to_string()),
+                    format!("Error reading an object by set: {}", err),
                 ),
                 Ok(_) => {
                     let bucket = set_s.bucket().to_string();
@@ -84,7 +84,7 @@ async fn read_ns(
                         Ok(uri) => redirect(uri),
                         Err(err) => wrap_error(
                             StatusCode::UNPROCESSABLE_ENTITY,
-                            format!("Error reading an object by set: {}", err.to_string()),
+                            format!("Error reading an object by set: {}", err),
                         ),
                     }
                 }
@@ -92,7 +92,7 @@ async fn read_ns(
         }
         Err(err) => wrap_error(
             StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Error reading an object by set: {}", err.to_string()),
+            format!("Error reading an object by set: {}", err),
         ),
     }
 }
