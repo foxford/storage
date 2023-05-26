@@ -61,9 +61,9 @@ pub fn run(config: AppConfig) {
     let context = AppContext::build(config.clone());
     let ctx = Arc::new(context.clone());
 
-    let (graceful_tx, graceful_rx) = tokio::sync::watch::channel(());
+    let (_, graceful_rx) = tokio::sync::watch::channel(());
     let mut shutdown_server_rx = graceful_rx.clone();
-    let http_task = tokio::spawn(
+    tokio::spawn(
         axum::Server::bind(&config.http.listener_address)
             .serve(build_router(ctx).into_make_service())
             .with_graceful_shutdown(async move {

@@ -1,9 +1,7 @@
 use serde::de;
-use serde::de::{Deserializer, Visitor};
+use serde::de::Visitor;
 use std::fmt;
 use std::time::Duration;
-
-////////////////////////////////////////////////////////////////////////////////
 
 struct DurationVisitor;
 
@@ -20,11 +18,4 @@ impl<'de> Visitor<'de> for DurationVisitor {
     {
         Ok(Duration::new(v, 0))
     }
-}
-
-pub fn duration<'de, D>(deserializer: D) -> Result<Duration, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    deserializer.deserialize_u64(DurationVisitor)
 }

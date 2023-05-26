@@ -6,7 +6,6 @@ app:
     alt:
       yandex:
         secret: yandex-storage-credentials
-        proxyHost: storage-lb.test.net
         # new config version
         proxyHosts:
           - base: storage-lb.test.net

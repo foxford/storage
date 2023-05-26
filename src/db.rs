@@ -1,25 +1,4 @@
-use diesel::pg::PgConnection;
-use diesel::r2d2::{ConnectionManager, Pool};
 use std::fmt;
-use std::sync::Arc;
-use std::time::Duration;
-
-////////////////////////////////////////////////////////////////////////////////
-
-pub type ConnectionPool = Arc<Pool<ConnectionManager<PgConnection>>>;
-
-pub fn create_pool(url: &str, size: u32, timeout: u64) -> ConnectionPool {
-    let manager = ConnectionManager::<PgConnection>::new(url);
-    let pool = Pool::builder()
-        .max_size(size)
-        .connection_timeout(Duration::from_secs(timeout))
-        .build(manager)
-        .expect("Error creating a database pool");
-
-    Arc::new(pool)
-}
-
-////////////////////////////////////////////////////////////////////////////////
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, FromSqlRow, AsExpression)]
 #[sql_type = "sql::Bucket"]

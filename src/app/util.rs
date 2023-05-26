@@ -188,11 +188,6 @@ impl AudienceEstimator {
             .ok_or_else(|| anyhow!("Error estimating an audience of the bucket('{}')", bucket))
     }
 
-    pub fn parse_bucket(&self, value: &str) -> Result<Bucket> {
-        self.estimate(value)
-            .map(|audience| Bucket::new(Self::bucket_label(value, audience), audience))
-    }
-
     pub fn parse_set(&self, value: &str) -> Result<Set> {
         let parts: Vec<&str> = value.split("::").collect();
         if parts.len() < 2 {

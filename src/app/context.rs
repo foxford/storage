@@ -10,8 +10,6 @@ use crate::app::{
     util::{read_s3_config, AudienceEstimator, S3Clients},
 };
 
-const MAX_LIMIT: i64 = 25;
-
 type S3ClientRef = Arc<S3Clients>;
 
 #[derive(Clone)]
@@ -25,25 +23,6 @@ pub struct AppContext {
 
 impl AppContext {
     pub fn build(config: AppConfig) -> Self {
-        let db = var("DATABASE_URL")
-            .map(|url| {
-                let size = var("DATABASE_POOL_SIZE")
-                    .map(|val| {
-                        val.parse::<u32>()
-                            .expect("Error converting DATABASE_POOL_SIZE variable into u32")
-                    })
-                    .unwrap_or_else(|_| 5);
-                let timeout = var("DATABASE_POOL_TIMEOUT")
-                    .map(|val| {
-                        val.parse::<u64>()
-                            .expect("Error converting DATABASE_POOL_TIMEOUT variable into u64")
-                    })
-                    .unwrap_or_else(|_| 5);
-
-                crate::db::create_pool(&url, size, timeout)
-            })
-            .ok();
-
         let cache = var("CACHE_ENABLED")
             .ok()
             .and_then(|val| match val.as_ref() {
