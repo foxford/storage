@@ -22,7 +22,6 @@ async fn main() {
     warn!(version = %APP_VERSION, "Launching storage");
 
     let config = AppConfig::load().expect("cannot load config");
-    warn!("config = {:?}", config);
 
     http::run(config).await;
 }
