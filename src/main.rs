@@ -20,7 +20,7 @@ fn main() {
 
     warn!(version = %APP_VERSION, "Launching storage");
 
-    let config = AppConfig::load().expect("caanot load config");
+    let config = AppConfig::load().expect("cannot load config");
 
     http::run(config);
 }
