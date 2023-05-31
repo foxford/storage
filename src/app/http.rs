@@ -58,7 +58,7 @@ pub fn build_router(context: Arc<AppContext>) -> Router {
     routes.layer(svc_utils::middleware::LogLayer::new())
 }
 
-pub fn run(config: AppConfig) {
+pub async fn run(config: AppConfig) {
     let ctx = Arc::new(AppContext::build(config.clone()));
 
     let reader = Arc::new(
