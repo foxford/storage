@@ -6,6 +6,7 @@ edition = "2018"
 
 [dependencies]
 axum = { version = "0.6", features = ["headers", "tokio"] }
+axum-client-ip = "0.4"
 tower-http = { version = "0.4", features = ["trace", "cors"] }
 tokio = { version = "1.28" }
 anyhow = "1.0"
