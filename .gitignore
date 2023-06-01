@@ -21,3 +21,4 @@ deploy
 
 # maxminddb
 GeoLite2-Country.mmdb
+GeoIP-Country.mmdb

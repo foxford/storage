@@ -62,7 +62,7 @@ pub async fn run(config: AppConfig) {
     let ctx = Arc::new(AppContext::build(config.clone()));
 
     let reader = Arc::new(
-        maxminddb::Reader::open_readfile("GeoLite2-Country.mmdb").expect("can't load maxminddb"),
+        maxminddb::Reader::open_readfile("GeoIP-Country.mmdb").expect("can't load maxminddb"),
     );
 
     if let Err(e) = axum::Server::bind(&config.http.listener_address)
