@@ -51,7 +51,7 @@ impl Client {
             let country_code = host
                 .country
                 .clone()
-                .map(|x| x.as_str().to_lowercase().to_string())
+                .map(|x| x.as_str().to_lowercase())
                 .unwrap_or(DEFAULT_COUNTRY_CODE.to_string());
             match host.alias_range_upper_bound {
                 Some(upper_bound) => {
