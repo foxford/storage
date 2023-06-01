@@ -96,7 +96,7 @@ impl Client {
     ) -> Result<String> {
         let url = req.generate_presigned_url(&self.credentials, &self.expires_in, false);
 
-        if let Some(ref proxy_hosts) = self.get_proxy_hosts(country) {
+        if let Some(proxy_hosts) = self.get_proxy_hosts(country) {
             let mut parsed_url = Url::parse(&url).context("failed to parse generated uri")?;
 
             let idx = self.counter.fetch_add(1, Ordering::Acquire) % proxy_hosts.len();
