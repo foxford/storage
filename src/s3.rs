@@ -10,7 +10,7 @@ use url::Url;
 
 use crate::app::util::ProxyHost;
 
-const DEFAULT_COUNTRY_CODE: &str = "default";
+const DEFAULT_COUNTRY_CODE: &str = "ru";
 
 #[derive(Debug)]
 pub struct Client {
@@ -51,6 +51,7 @@ impl Client {
             let country_code = host
                 .country
                 .clone()
+                .map(|x| x.as_str().to_lowercase().to_string())
                 .unwrap_or(DEFAULT_COUNTRY_CODE.to_string());
             match host.alias_range_upper_bound {
                 Some(upper_bound) => {
