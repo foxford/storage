@@ -5,20 +5,32 @@ use std::sync::Arc;
 use svc_authn::AccountId;
 use svc_utils::extractors::AccountIdExtractor;
 
-use crate::app::{authz::AuthzObject, context::AppContext};
+use super::{s3_object, valid_referer, wrap_error};
+use crate::app::{authz::AuthzObject, context::AppContext, maxmind::CountryExtractor};
 
 pub async fn backend_read(
     State(ctx): State<Arc<AppContext>>,
     AccountIdExtractor(sub): AccountIdExtractor,
+    CountryExtractor(country): CountryExtractor,
     Path(back): Path<String>,
     Path(set): Path<String>,
     Path(object): Path<String>,
 ) -> Response<String> {
-    read_ns(ctx, back, set, object, sub, headers.get(REFERER)).await
+    read_ns(
+        ctx,
+        country.as_ref(),
+        back,
+        set,
+        object,
+        sub,
+        headers.get(REFERER),
+    )
+    .await
 }
 
 async fn read_ns(
     ctx: Arc<AppContext>,
+    country: Option<&String>,
     back: String,
     set: String,
     object: String,
@@ -64,7 +76,7 @@ async fn read_ns(
                     let bucket = set_s.bucket().to_string();
                     let object = s3_object(set_s.label(), &object);
 
-                    match s3.presigned_url("GET", &bucket, &object) {
+                    match s3.presigned_url(country, "GET", &bucket, &object) {
                         Ok(uri) => redirect(uri),
                         Err(err) => wrap_error(
                             StatusCode::UNPROCESSABLE_ENTITY,

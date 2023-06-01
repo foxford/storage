@@ -25,6 +25,7 @@ pub struct BackendConfigItem {
 pub struct ProxyHost {
     pub base: String,
     pub alias_range_upper_bound: Option<usize>,
+    pub country: Option<String>,
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -112,7 +113,7 @@ impl S3SignedRequestBuilder {
         Self { headers, ..self }
     }
 
-    pub fn build(self, client: &Client) -> Result<String> {
+    pub fn build(self, client: &Client, country: Option<&String>) -> Result<String> {
         let mut req = client.create_request(
             &self
                 .method
@@ -129,7 +130,7 @@ impl S3SignedRequestBuilder {
         }
 
         client
-            .sign_request(&mut req)
+            .sign_request(&mut req, country)
             .map_err(|err| anyhow!("Error building a signed request. {}", &err.to_string()))
     }
 }

@@ -15,7 +15,10 @@ use svc_authn::AccountId;
 use svc_utils::extractors::AccountIdExtractor;
 
 use super::{s3_object, valid_referer, wrap_error};
-use crate::app::{authz::AuthzObject, context::AppContext, util::S3SignedRequestBuilder};
+use crate::app::{
+    authz::AuthzObject, context::AppContext, maxmind::CountryExtractor,
+    util::S3SignedRequestBuilder,
+};
 
 #[derive(Debug, Deserialize)]
 pub struct SignPayload {
@@ -28,15 +31,25 @@ pub struct SignPayload {
 pub async fn backend_sign(
     State(ctx): State<Arc<AppContext>>,
     AccountIdExtractor(sub): AccountIdExtractor,
+    CountryExtractor(country): CountryExtractor,
     Path(back): Path<String>,
     headers: HeaderMap,
     Json(payload): Json<SignPayload>,
 ) -> Response<String> {
-    sign_ns(ctx, back, payload, sub, headers.get(REFERER)).await
+    sign_ns(
+        ctx,
+        country.as_ref(),
+        back,
+        payload,
+        sub,
+        headers.get(REFERER),
+    )
+    .await
 }
 
 async fn sign_ns(
     ctx: Arc<AppContext>,
+    country: Option<&String>,
     back: String,
     body: SignPayload,
     sub: AccountId,
@@ -94,7 +107,7 @@ async fn sign_ns(
                     for (key, val) in body.headers {
                         builder = builder.add_header(&key, &val);
                     }
-                    match builder.build(&s3) {
+                    match builder.build(&s3, country) {
                         Ok(uri) => Response::builder()
                             .status(StatusCode::OK)
                             .header(CONTENT_TYPE, "application/json")
