@@ -23,12 +23,47 @@ spec:
         - image: "{{ .Values.networkTester.image.repository }}:{{ .Values.networkTester.image.tag }}"
           imagePullPolicy: IfNotPresent
           name: network-tester
+        - image: amazon/aws-cli:2.11
+          imagePullPolicy: IfNotPresent
+          name: maxminddb-download
+          command:
+          - aws s3 cp s3://apps-data/dev/maximind/geolite2-country.tar.gz ./maximind.tar.gz --endpoint=$AWS_ENDPOINT
+          - tar -xf ./maximind.tar.gz
+          - cp `find . -type f -name "*.mmdb"` /maximind/maximind.mmdb
+          volumeMounts:
+          - name: maximind
+            mountPath: "/maximind"
+          env:
+          - name: AWS_ACCESS_KEY_ID
+            valueFrom:
+              secretKeyRef:
+                name: {{ (get .Values.app.s3.alt .Values.app.s3.default).secret }}
+                key: key
+          - name: AWS_SECRET_ACCESS_KEY
+            valueFrom:
+              secretKeyRef:
+                name: {{ (get .Values.app.s3.alt .Values.app.s3.default).secret }}
+                key: secret
+          - name: AWS_ENDPOINT
+            valueFrom:
+              secretKeyRef:
+                name: {{ (get .Values.app.s3.alt .Values.app.s3.default).secret }}
+                key: endpoint
+          - name: AWS_REGION
+            valueFrom:
+              secretKeyRef:
+                name: {{ (get .Values.app.s3.alt .Values.app.s3.default).secret }}
+                key: region
+
       containers:
         - name: storage
           image: "{{ .Values.app.image.repository }}:{{ .Values.app.image.tag }}"
           ports:
             - containerPort: {{ .Values.clusterService.ports.http }}
           volumeMounts:
+            - name: maximind
+              mountPath: /app/maximind.mmdb
+              subPath: maximind.mmdb
             - name: config
               mountPath: /app/App.toml
               subPath: App.toml
@@ -99,6 +134,7 @@ spec:
               exec:
                 command: ["sleep", "{{ .Values.preStopSleepSeconds }}"]
       volumes:
+        - name: maximind
         - name: config
           configMap:
             name: {{ include "storage.fullname" . }}-app
