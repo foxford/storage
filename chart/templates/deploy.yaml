@@ -27,7 +27,7 @@ spec:
           imagePullPolicy: IfNotPresent
           name: maxminddb-download
           command:
-          - aws s3 cp s3://apps-data/dev/maximind/geolite2-country.tar.gz ./maximind.tar.gz --endpoint=$AWS_ENDPOINT
+          - aws s3 cp {{ .Values.maxiMindS3Path }} ./maximind.tar.gz --endpoint=$AWS_ENDPOINT
           - tar -xf ./maximind.tar.gz
           - cp `find . -type f -name "*.mmdb"` /maximind/maximind.mmdb
           volumeMounts:
