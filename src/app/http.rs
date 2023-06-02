@@ -11,6 +11,7 @@ use http::{
     Method, Response,
 };
 use tower_http::cors::{Any, CorsLayer};
+use tracing::error;
 
 use super::{config::AppConfig, context::AppContext, endpoints};
 
@@ -36,13 +37,13 @@ pub fn build_router(context: Arc<AppContext>) -> Router {
     let routes = Router::new().nest(
         "/api/v2",
         Router::new()
-            .route("sets/:set/objects/:object", get(endpoints::read))
+            .route("/sets/:set/objects/:object", get(endpoints::read))
             .route(
-                "backends/:back/sets/:set/objects/:object",
+                "/backends/:back/sets/:set/objects/:object",
                 get(endpoints::backend_read),
             )
-            .route("sign", post(endpoints::sign))
-            .route("backends/:back/sign", post(endpoints::backend_sign))
+            .route("/sign", post(endpoints::sign))
+            .route("/backends/:back/sign", post(endpoints::backend_sign))
             .layer(cors)
             .with_state(context),
     );
@@ -57,16 +58,14 @@ pub fn build_router(context: Arc<AppContext>) -> Router {
     routes.layer(svc_utils::middleware::LogLayer::new())
 }
 
-pub fn run(config: AppConfig) {
+pub async fn run(config: AppConfig) {
     let context = AppContext::build(config.clone());
     let ctx = Arc::new(context);
 
-    let (_, mut shutdown_server_rx) = tokio::sync::watch::channel(());
-    tokio::spawn(
-        axum::Server::bind(&config.http.listener_address)
-            .serve(build_router(ctx).into_make_service())
-            .with_graceful_shutdown(async move {
-                shutdown_server_rx.changed().await.ok();
-            }),
-    );
+    if let Err(e) = axum::Server::bind(&config.http.listener_address)
+        .serve(build_router(ctx).into_make_service())
+        .await
+    {
+        error!("Failed to await http server completion, err = {:?}", e);
+    }
 }

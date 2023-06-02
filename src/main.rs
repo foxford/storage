@@ -15,12 +15,14 @@ const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 use crate::app::{config::AppConfig, http};
 use tracing::warn;
 
-fn main() {
+#[tokio::main]
+async fn main() {
     env_logger::init();
 
     warn!(version = %APP_VERSION, "Launching storage");
 
     let config = AppConfig::load().expect("cannot load config");
+    warn!("config = {:?}", config);
 
-    http::run(config);
+    http::run(config).await;
 }
