@@ -37,4 +37,4 @@ clusterService:
 tls:
   secretName: tls-certificates
 
-maxMindS3Path: s3://apps-data/dev/maximind/geolite2-country.tar.gz
+maxMindS3Path: s3://apps-data/dev/maxmind/geolite2-country.tar.gz
