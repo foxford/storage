@@ -35,7 +35,7 @@ impl<S: Send + Sync> FromRequestParts<S> for CountryExtractor {
                 }
             };
 
-        Span::current().record("id_address", &field::display(&ip_address));
+        Span::current().record("ip_address", &field::display(&ip_address));
 
         let country: Option<String> = match maxmind.lookup::<Country>(ip_address) {
             Ok(country) => country

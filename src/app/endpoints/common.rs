@@ -47,7 +47,7 @@ pub fn valid_referer(
 }
 
 pub fn s3_object(set: &str, object: &str) -> String {
-    format!("{set}.{object}", set = set, object = object)
+    format!("{set}.{object}")
 }
 
 pub fn wrap_error(status: StatusCode, msg: String) -> Response<String> {

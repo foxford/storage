@@ -26,13 +26,15 @@ spec:
         - image: amazon/aws-cli:2.11
           imagePullPolicy: IfNotPresent
           name: maxminddb-download
-          command:
-          - aws s3 cp {{ .Values.maxiMindS3Path }} ./maximind.tar.gz --endpoint=$AWS_ENDPOINT
-          - tar -xf ./maximind.tar.gz
-          - cp `find . -type f -name "*.mmdb"` /maximind/maximind.mmdb
+          command: ["/bin/sh"]
+          args: >
+            -c
+            aws s3 cp {{ .Values.maxMindS3Path }} ./maxmind.tar.gz --endpoint=$AWS_ENDPOINT;
+            tar -xf ./maxmind.tar.gz;
+            cp `find . -type f -name "*.mmdb"` /maxmind/maxmind.mmdb;
           volumeMounts:
-          - name: maximind
-            mountPath: "/maximind"
+          - name: maxmind
+            mountPath: "/maxmind"
           env:
           - name: AWS_ACCESS_KEY_ID
             valueFrom:
@@ -61,9 +63,9 @@ spec:
           ports:
             - containerPort: {{ .Values.clusterService.ports.http }}
           volumeMounts:
-            - name: maximind
-              mountPath: /app/maximind.mmdb
-              subPath: maximind.mmdb
+            - name: maxmind
+              mountPath: /app/maxmind.mmdb
+              subPath: maxmind.mmdb
             - name: config
               mountPath: /app/App.toml
               subPath: App.toml
@@ -134,7 +136,8 @@ spec:
               exec:
                 command: ["sleep", "{{ .Values.preStopSleepSeconds }}"]
       volumes:
-        - name: maximind
+        - name: maxmind
+          emptyDir: {}
         - name: config
           configMap:
             name: {{ include "storage.fullname" . }}-app

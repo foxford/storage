@@ -19,5 +19,5 @@ App.toml
 .idea
 deploy
 
-# maximinddb
-maximind.mmdb
+# maxminddb
+maxmind.mmdb

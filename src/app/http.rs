@@ -61,9 +61,8 @@ pub fn build_router(context: Arc<AppContext>) -> Router {
 pub async fn run(config: AppConfig) {
     let ctx = Arc::new(AppContext::build(config.clone()));
 
-    let reader = Arc::new(
-        maxminddb::Reader::open_readfile("maximind.mmdb").expect("can't load maxminddb"),
-    );
+    let reader =
+        Arc::new(maxminddb::Reader::open_readfile("maxmind.mmdb").expect("can't load maxminddb"));
 
     if let Err(e) = axum::Server::bind(&config.http.listener_address)
         .serve(build_router(ctx, config.authn.clone(), reader).into_make_service_with_connect_info::<SocketAddr>())
