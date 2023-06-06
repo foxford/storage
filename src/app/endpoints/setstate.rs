@@ -14,8 +14,7 @@ use crate::app::{authz::AuthzObject, context::AppContext};
 pub async fn read(
     State(ctx): State<Arc<AppContext>>,
     AccountIdExtractor(sub): AccountIdExtractor,
-    Path(set): Path<String>,
-    Path(object): Path<String>,
+    Path((set, object)): Path<(String, String)>,
     headers: HeaderMap,
 ) -> Response<String> {
     let back = String::from(crate::app::util::S3_DEFAULT_CLIENT);
@@ -25,9 +24,7 @@ pub async fn read(
 pub async fn backend_read(
     State(ctx): State<Arc<AppContext>>,
     AccountIdExtractor(sub): AccountIdExtractor,
-    Path(back): Path<String>,
-    Path(set): Path<String>,
-    Path(object): Path<String>,
+    Path((back, set, object)): Path<(String, String, String)>,
     headers: HeaderMap,
 ) -> Response<String> {
     read_ns(ctx, back, set, object, sub, headers.get(REFERER)).await
