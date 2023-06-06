@@ -18,9 +18,7 @@ pub async fn backend_read(
     State(ctx): State<Arc<AppContext>>,
     AccountIdExtractor(sub): AccountIdExtractor,
     CountryExtractor(country): CountryExtractor,
-    Path(back): Path<String>,
-    Path(set): Path<String>,
-    Path(object): Path<String>,
+    Path((back, set, object)): Path<(String, String, String)>,
     headers: HeaderMap,
 ) -> Response {
     read_ns(ctx, country, back, set, object, sub, headers.get(REFERER)).await

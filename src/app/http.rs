@@ -14,7 +14,11 @@ use tracing::error;
 
 use super::{config::AppConfig, context::AppContext, endpoints};
 
-pub fn build_router(context: Arc<AppContext>) -> Router {
+pub fn build_router(
+    context: Arc<AppContext>,
+    authn: svc_authn::jose::ConfigMap,
+    maxmind: Arc<maxminddb::Reader<Vec<u8>>>,
+) -> Router {
     let cors = CorsLayer::new()
         .allow_methods([Method::GET, Method::POST])
         .allow_headers([
@@ -45,6 +49,7 @@ pub fn build_router(context: Arc<AppContext>) -> Router {
             .layer(Extension(Arc::new(authn)))
             .layer(Extension(Arc::new(context.application_id.clone())))
             .layer(Extension(maxmind))
+            .layer(Extension(authn))
             .with_state(context),
     );
 
@@ -65,7 +70,10 @@ pub async fn run(config: AppConfig) {
         Arc::new(maxminddb::Reader::open_readfile("maxmind.mmdb").expect("can't load maxminddb"));
 
     if let Err(e) = axum::Server::bind(&config.http.listener_address)
-        .serve(build_router(ctx, config.authn.clone(), reader).into_make_service_with_connect_info::<SocketAddr>())
+        .serve(
+            build_router(ctx, config.authn.clone(), reader)
+                .into_make_service_with_connect_info::<SocketAddr>(),
+        )
         .await
     {
         error!("Failed to await http server completion, err = {:?}", e);
