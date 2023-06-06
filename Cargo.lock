@@ -2056,9 +2056,13 @@ dependencies = [
  "serde_derive",
  "svc-authn",
  "svc-authz",
- "tower-web",
- "url 1.7.2",
- "uuid 0.6.5",
+ "svc-error",
+ "svc-utils",
+ "tokio",
+ "tower-http",
+ "tracing",
+ "url",
+ "uuid 0.8.2",
 ]
 
 [[package]]
@@ -2117,6 +2121,8 @@ dependencies = [
  "http",
  "serde",
  "serde_derive",
+ "svc-authn",
+ "svc-authz",
 ]
 
 [[package]]

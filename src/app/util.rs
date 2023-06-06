@@ -113,7 +113,7 @@ impl S3SignedRequestBuilder {
         Self { headers, ..self }
     }
 
-    pub fn build(self, client: &Client, country: Option<&String>) -> Result<String> {
+    pub fn build(self, client: &Client, country: &String) -> Result<String> {
         let mut req = client.create_request(
             &self
                 .method

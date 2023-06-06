@@ -10,7 +10,7 @@ use url::Url;
 
 use crate::app::util::ProxyHost;
 
-const DEFAULT_COUNTRY_CODE: &str = "ru";
+pub const DEFAULT_COUNTRY_CODE: &str = "ru";
 
 #[derive(Debug)]
 pub struct Client {
@@ -84,17 +84,11 @@ impl Client {
         SignedRequest::new(method, "s3", &self.region, &uri)
     }
 
-    fn get_proxy_hosts(&self, country: Option<&String>) -> Option<&Vec<String>> {
-        let default = DEFAULT_COUNTRY_CODE.to_string();
-        let country_code = country.unwrap_or(&default);
-        self.proxy_hosts.as_ref().and_then(|c| c.get(country_code))
+    fn get_proxy_hosts(&self, country: &String) -> Option<&Vec<String>> {
+        self.proxy_hosts.as_ref().and_then(|c| c.get(country))
     }
 
-    pub fn sign_request(
-        &self,
-        req: &mut SignedRequest,
-        country: Option<&String>,
-    ) -> Result<String> {
+    pub fn sign_request(&self, req: &mut SignedRequest, country: &String) -> Result<String> {
         let url = req.generate_presigned_url(&self.credentials, &self.expires_in, false);
 
         if let Some(proxy_hosts) = self.get_proxy_hosts(country) {
@@ -113,7 +107,7 @@ impl Client {
 
     pub fn presigned_url(
         &self,
-        country: Option<&String>,
+        country: &String,
         method: &str,
         bucket: &str,
         object: &str,

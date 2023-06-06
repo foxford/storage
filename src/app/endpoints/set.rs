@@ -1,12 +1,18 @@
-use axum::extract::{Path, State};
-use http::Response;
+use axum::{
+    extract::{Path, State},
+    http::header::{HeaderMap, HeaderValue},
+    response::{IntoResponse, Response},
+};
+use http::{header::REFERER, StatusCode};
 use std::sync::Arc;
 
 use svc_authn::AccountId;
 use svc_utils::extractors::AccountIdExtractor;
 
 use super::{s3_object, valid_referer, wrap_error};
-use crate::app::{authz::AuthzObject, context::AppContext, maxmind::CountryExtractor};
+use crate::app::{
+    authz::AuthzObject, context::AppContext, error::ErrorKind, maxmind::CountryExtractor,
+};
 
 pub async fn backend_read(
     State(ctx): State<Arc<AppContext>>,
@@ -15,35 +21,27 @@ pub async fn backend_read(
     Path(back): Path<String>,
     Path(set): Path<String>,
     Path(object): Path<String>,
-) -> Response<String> {
-    read_ns(
-        ctx,
-        country.as_ref(),
-        back,
-        set,
-        object,
-        sub,
-        headers.get(REFERER),
-    )
-    .await
+    headers: HeaderMap,
+) -> Response {
+    read_ns(ctx, country, back, set, object, sub, headers.get(REFERER)).await
 }
 
 async fn read_ns(
     ctx: Arc<AppContext>,
-    country: Option<&String>,
+    country: String,
     back: String,
     set: String,
     object: String,
     sub: AccountId,
     referer: Option<&HeaderValue>,
-) -> Response<String> {
+) -> Response {
     let zobj = AuthzObject::new(&["sets", &set]);
     let zact = "read";
     let s3 = match ctx.s3.get(&back) {
         Some(val) => val.clone(),
         None => {
             return wrap_error(
-                StatusCode::NOT_FOUND,
+                ErrorKind::BackendNotFound,
                 format!(
                     "Error reading an object by set: Backend '{}' is not found",
                     &back
@@ -69,17 +67,17 @@ async fn read_ns(
                 .await
             {
                 Err(err) => wrap_error(
-                    StatusCode::FORBIDDEN,
+                    ErrorKind::ObjectReadingError,
                     format!("Error reading an object by set: {}", err),
                 ),
                 Ok(_) => {
                     let bucket = set_s.bucket().to_string();
                     let object = s3_object(set_s.label(), &object);
 
-                    match s3.presigned_url(country, "GET", &bucket, &object) {
+                    match s3.presigned_url(&country, "GET", &bucket, &object) {
                         Ok(uri) => redirect(uri),
                         Err(err) => wrap_error(
-                            StatusCode::UNPROCESSABLE_ENTITY,
+                            ErrorKind::ObjectReadingError,
                             format!("Error reading an object by set: {}", err),
                         ),
                     }
@@ -87,76 +85,18 @@ async fn read_ns(
             }
         }
         Err(err) => wrap_error(
-            StatusCode::INTERNAL_SERVER_ERROR,
+            ErrorKind::ObjectReadingError,
             format!("Error reading an object by set: {}", err),
         ),
     }
 }
 
-fn valid_referer(
-    ctx: &Arc<AppContext>,
-    bucket: &str,
-    referer: Option<&HeaderValue>,
-) -> Result<(), Response<String>> {
-    let referer = match referer {
-        None => None,
-        Some(r) => match r.to_str() {
-            Ok(r) => Some(r),
-            Err(err) => {
-                return Err(wrap_error(
-                    StatusCode::BAD_REQUEST,
-                    format!("Error reading 'REFERER' header: {}", err.to_string()),
-                ))
-            }
-        },
-    };
-
-    match ctx.aud_estm.estimate(bucket) {
-        Ok(aud) => match ctx.audiences_settings.get(aud) {
-            Some(aud_settings) => if !aud_settings.valid_referer(referer.as_deref()) {
-                return Err(wrap_error(
-                    StatusCode::FORBIDDEN,
-                    "Error reading an object using Set API: Invalid request".to_string(),
-                ));
-            }
-            None => {
-                return Err(wrap_error(
-                    StatusCode::NOT_FOUND,
-                    format!("Error reading an object using Set API: Audience settings for bucket '{}' not found", &bucket),
-                ));
-            }
-        }
-        Err(err) =>
-            return Err(wrap_error(
-                StatusCode::NOT_FOUND,
-                format!("Error reading an object using Set API: Audience estimate for bucket '{}' not found, err = {}", &bucket, err),
-            ))
-    }
-
-    Ok(())
-}
-
-fn parse_action(method: &str) -> anyhow::Result<&str> {
-    match method {
-        "HEAD" => Ok("read"),
-        "GET" => Ok("read"),
-        "PUT" => Ok("update"),
-        "DELETE" => Ok("delete"),
-        _ => Err(anyhow!("invalid method = {}", method)),
-    }
-}
-
-fn s3_object(set: &str, object: &str) -> String {
-    format!("{set}.{object}", set = set, object = object)
-}
-
-fn redirect(uri: String) -> Response<String> {
-    Response::builder()
-        .header("location", uri)
-        .header("Timing-Allow-Origin", "*")
-        .status(StatusCode::SEE_OTHER)
-        .body(String::default())
-        .unwrap()
+fn redirect(uri: String) -> Response {
+    (
+        StatusCode::SEE_OTHER,
+        [("location", uri), ("Timing-Allow-Origin", "*".to_string())],
+    )
+        .into_response()
 }
 
 fn wrap_error(status: StatusCode, msg: String) -> Response<String> {
