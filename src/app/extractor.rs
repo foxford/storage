@@ -37,6 +37,10 @@ impl<S: Send + Sync> FromRequestParts<S> for AccountIdExtractor {
             "Authorization header: {:?}",
             parts.headers.get("Authorization"),
         );
+        error!(
+            "headers: {:?}",
+            parts.headers,
+        );
         let auth_header = parts
             .headers
             .get("Authorization")
