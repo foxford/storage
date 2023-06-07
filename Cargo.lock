@@ -2089,8 +2089,10 @@ dependencies = [
  "rusoto_s3",
  "serde",
  "serde_json",
+ "svc-agent",
  "svc-authn",
  "svc-authz",
+ "svc-error",
  "svc-utils",
  "tokio",
  "tower-http",
@@ -2186,8 +2188,7 @@ dependencies = [
 [[package]]
 name = "svc-utils"
 version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8b8fd4d41bfda7aec14a80746dd1e6f5ae6c04643a7e9c18065f38388b6a4477"
+source = "git+https://github.com/foxford/svc-utils-rs.git?branch=ULMS-2413#b088afc66810d9863c7ac649637b62d4011a3a59"
 dependencies = [
  "axum",
  "futures",
