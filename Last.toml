@@ -1,0 +1,63 @@
+----
+id = "storage.svc.netology-group.services"
+
+[http]
+listener_address = "0.0.0.0:8080"
+
+[http.cors]
+allow_origins = "*"
+max_age = 86400
+
+##
+## S3-compatible underlying backends
+##
+[backend]
+default = "yandex"
+[backend.alt.yandex]
+
+##
+## SVC
+##
+[authn."svc.netology-group.services"]
+audience = ["svc.netology-group.services"]
+algorithm = "ES256"
+key = "/app/data/keys/svc.public_key.p8.der"
+
+[authz."svc.netology-group.services"]
+type = "local"
+trusted = [
+    "tq.svc.netology-group.services",
+]
+
+##
+## foxford.ru
+##
+[authn."iam.svc.foxford.ru"]
+audience = ["svc.foxford.ru", "usr.foxford.ru"]
+algorithm = "ES256"
+key = "/app/data/keys/iam.foxford.public_key.p8.der"
+
+[authz."testing01.foxford.ru"]
+type = "http"
+uri = "http://dispatcher-cluster:8080/api/v1/authz/testing01.foxford.ru"
+algorithm = "ES256"
+key = "data/keys/svc.private_key.p8.der"
+trusted = [
+    "dispatcher.svc.netology-group.services",
+]
+
+[audiences_settings."testing01.foxford.ru"]
+
+##
+## tenantless
+##
+[authn."iam.svc.tenantless"]
+audience = ["svc.tenantless", "usr.tenantless"]
+algorithm = "ES256"
+key = "/app/data/keys/iam.foxford.public_key.p8.der"
+
+[authz."testing01.tenantless"]
+type = "none"
+
+[audiences_settings."testing01.tenantless"]
+
