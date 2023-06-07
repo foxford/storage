@@ -26,4 +26,4 @@ http = "0.2"
 url = "2.3"
 svc-authn = { version = "0.8", features = ["jose"] }
 svc-authz = "0.12"
-svc-utils = { version = "0.7", features = ["authn-extractor", "log-middleware"] }
+svc-utils = { git = "https://github.com/foxford/svc-utils-rs.git", branch = "ULMS-2413", features = ["authn-extractor", "log-middleware"] }
