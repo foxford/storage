@@ -1,25 +1,31 @@
-use std::sync::Arc;
-
 use axum::{
     async_trait,
     extract::{Extension, FromRequestParts, Json},
     http::{request::Parts, StatusCode},
 };
+use std::sync::Arc;
 use svc_agent::AccountId;
 use svc_authn::jose::ConfigMap as AuthnConfig;
 use svc_authn::token::jws_compact::extract::decode_jws_compact_with_config;
 use svc_error::Error;
-use tracing::{error, field, Span};
+use svc_utils::extractors::AccountIdExtractor;
+use tracing::{field, Span};
 
-/// Extracts `AccountId` from "Authorization: Bearer ..." headers.
-pub struct AccountIdExtractor(pub AccountId);
+/// Extracts `AccountId` from "Authorization: Bearer ..." header or query string
+pub struct AccessTokenExtractor(pub AccountId);
 
 #[async_trait]
-impl<S: Send + Sync> FromRequestParts<S> for AccountIdExtractor {
+impl<S: Send + Sync> FromRequestParts<S> for AccessTokenExtractor {
     type Rejection = (StatusCode, Json<Error>);
 
-    async fn from_request_parts(parts: &mut Parts, _state: &S) -> Result<Self, Self::Rejection> {
+    async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
         use axum::RequestPartsExt;
+        if let Ok(AccountIdExtractor(account_id)) =
+            AccountIdExtractor::from_request_parts(parts, state).await
+        {
+            return Ok(Self(account_id));
+        }
+
         let Extension(authn) = parts
             .extract::<Extension<Arc<AuthnConfig>>>()
             .await
@@ -33,19 +39,9 @@ impl<S: Send + Sync> FromRequestParts<S> for AccountIdExtractor {
                 )),
             ))?;
 
-        error!(
-            "Authorization header: {:?}",
-            parts.headers.get("Authorization"),
-        );
-        error!(
-            "headers: {:?}",
-            parts.headers,
-        );
-        let auth_header = parts
-            .headers
-            .get("Authorization")
-            .and_then(|x| x.to_str().ok())
-            .and_then(|x| x.get("Bearer ".len()..))
+        let access_token = url::form_urlencoded::parse(parts.uri.query().unwrap_or("").as_bytes())
+            .find(|(key, _)| key == "access_token")
+            .map(|(_, val)| val)
             .ok_or((
                 StatusCode::UNAUTHORIZED,
                 Json(Error::new(
@@ -55,8 +51,7 @@ impl<S: Send + Sync> FromRequestParts<S> for AccountIdExtractor {
                 )),
             ))?;
 
-        error!("auth_header: {}", auth_header);
-        let claims = decode_jws_compact_with_config::<String>(auth_header, &authn)
+        let claims = decode_jws_compact_with_config::<String>(&access_token, &authn)
             .map_err(|e| {
                 let err = e.to_string();
                 (

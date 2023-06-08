@@ -12,10 +12,12 @@ use serde_json::json;
 use std::{collections::BTreeMap, sync::Arc};
 
 use svc_authn::AccountId;
-use svc_utils::extractors::AccountIdExtractor;
 
 use super::{s3_object, valid_referer, wrap_error};
-use crate::app::{authz::AuthzObject, context::AppContext, util::S3SignedRequestBuilder};
+use crate::app::{
+    access_token::AccessTokenExtractor, authz::AuthzObject, context::AppContext,
+    util::S3SignedRequestBuilder,
+};
 
 #[derive(Debug, Deserialize)]
 pub struct SignPayload {
@@ -27,7 +29,7 @@ pub struct SignPayload {
 
 pub async fn sign(
     State(ctx): State<Arc<AppContext>>,
-    AccountIdExtractor(sub): AccountIdExtractor,
+    AccessTokenExtractor(sub): AccessTokenExtractor,
     headers: HeaderMap,
     Json(payload): Json<SignPayload>,
 ) -> Response<String> {
@@ -37,7 +39,7 @@ pub async fn sign(
 
 pub async fn backend_sign(
     State(ctx): State<Arc<AppContext>>,
-    AccountIdExtractor(sub): AccountIdExtractor,
+    AccessTokenExtractor(sub): AccessTokenExtractor,
     Path(back): Path<String>,
     headers: HeaderMap,
     Json(payload): Json<SignPayload>,

@@ -6,24 +6,23 @@ use http::{header::REFERER, Response, StatusCode};
 use std::sync::Arc;
 
 use svc_authn::AccountId;
-//use svc_utils::extractors::AccountIdExtractor;
 
 use super::{s3_object, valid_referer, wrap_error};
-use crate::app::{authz::AuthzObject, context::AppContext, extractor::AccountIdExtractor};
+use crate::app::{access_token::AccessTokenExtractor, authz::AuthzObject, context::AppContext};
 
 pub async fn read(
     State(ctx): State<Arc<AppContext>>,
-    sub: Option<AccountIdExtractor>,
+    AccessTokenExtractor(sub): AccessTokenExtractor,
     Path((set, object)): Path<(String, String)>,
     headers: HeaderMap,
 ) -> Response<String> {
     let back = String::from(crate::app::util::S3_DEFAULT_CLIENT);
-    read_ns(ctx, back, set, object, sub.unwrap().0, headers.get(REFERER)).await
+    read_ns(ctx, back, set, object, sub, headers.get(REFERER)).await
 }
 
 pub async fn backend_read(
     State(ctx): State<Arc<AppContext>>,
-    AccountIdExtractor(sub): AccountIdExtractor,
+    AccessTokenExtractor(sub): AccessTokenExtractor,
     Path((back, set, object)): Path<(String, String, String)>,
     headers: HeaderMap,
 ) -> Response<String> {
