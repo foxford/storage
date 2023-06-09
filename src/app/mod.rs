@@ -1,4 +1,3 @@
-mod access_token;
 mod authz;
 pub mod config;
 pub mod context;

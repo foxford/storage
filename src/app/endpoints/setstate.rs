@@ -6,13 +6,14 @@ use http::{header::REFERER, Response, StatusCode};
 use std::sync::Arc;
 
 use svc_authn::AccountId;
+use svc_utils::extractors::AccountIdExtractor;
 
 use super::{s3_object, valid_referer, wrap_error};
-use crate::app::{access_token::AccessTokenExtractor, authz::AuthzObject, context::AppContext};
+use crate::app::{authz::AuthzObject, context::AppContext};
 
 pub async fn read(
     State(ctx): State<Arc<AppContext>>,
-    AccessTokenExtractor(sub): AccessTokenExtractor,
+    AccountIdExtractor(sub): AccountIdExtractor,
     Path((set, object)): Path<(String, String)>,
     headers: HeaderMap,
 ) -> Response<String> {
@@ -22,7 +23,7 @@ pub async fn read(
 
 pub async fn backend_read(
     State(ctx): State<Arc<AppContext>>,
-    AccessTokenExtractor(sub): AccessTokenExtractor,
+    AccountIdExtractor(sub): AccountIdExtractor,
     Path((back, set, object)): Path<(String, String, String)>,
     headers: HeaderMap,
 ) -> Response<String> {

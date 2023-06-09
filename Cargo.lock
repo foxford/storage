@@ -2187,8 +2187,9 @@ dependencies = [
 
 [[package]]
 name = "svc-utils"
-version = "0.7.0"
-source = "git+https://github.com/foxford/svc-utils-rs.git?branch=ULMS-2413#b088afc66810d9863c7ac649637b62d4011a3a59"
+version = "0.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "af012d35ea736edfc93e1c84ab8bd6fbe806dbfdcbdf12a0564443d4141765c3"
 dependencies = [
  "axum",
  "futures",
@@ -2202,6 +2203,7 @@ dependencies = [
  "tower",
  "tower-http",
  "tracing",
+ "url",
 ]
 
 [[package]]

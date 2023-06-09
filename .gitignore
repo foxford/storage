@@ -19,5 +19,3 @@ App.toml
 .idea
 deploy
 
-#maxminddb
-GeoIP-Country.mmdb
