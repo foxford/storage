@@ -5,8 +5,9 @@ use axum::{
 use http::{header::REFERER, Response, StatusCode};
 use std::sync::Arc;
 
+use super::super::extractor::AccountIdExtractor;
 use svc_authn::AccountId;
-use svc_utils::extractors::AccountIdExtractor;
+//use svc_utils::extractors::AccountIdExtractor;
 
 use super::{s3_object, valid_referer, wrap_error};
 use crate::app::{authz::AuthzObject, context::AppContext};
