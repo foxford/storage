@@ -11,8 +11,8 @@ use serde::Deserialize;
 use serde_json::json;
 use std::{collections::BTreeMap, sync::Arc};
 
-use svc_authn::AccountId;
 use super::super::extractor::AccountIdExtractor;
+use svc_authn::AccountId;
 
 use super::{s3_object, valid_referer, wrap_error};
 use crate::app::{authz::AuthzObject, context::AppContext, util::S3SignedRequestBuilder};

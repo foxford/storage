@@ -33,8 +33,14 @@ impl<S: Send + Sync> FromRequestParts<S> for AccountIdExtractor {
                 )),
             ))?;
 
-        error!("Authorization header: {:?}", parts.headers.get("Authorization"));
-        error!("Query: {:?}", url::form_urlencoded::parse(parts.uri.query().unwrap_or("").as_bytes()));
+        error!(
+            "Authorization header: {:?}",
+            parts.headers.get("Authorization")
+        );
+        error!(
+            "Query: {:?}",
+            url::form_urlencoded::parse(parts.uri.query().unwrap_or("").as_bytes())
+        );
         let auth_header = parts
             .headers
             .get("Authorization")
