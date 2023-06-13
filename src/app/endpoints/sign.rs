@@ -42,7 +42,7 @@ pub async fn backend_sign(
 
 async fn sign_ns(
     ctx: Arc<AppContext>,
-    country: String,
+    country: Option<String>,
     back: String,
     body: SignPayload,
     sub: AccountId,
@@ -100,7 +100,7 @@ async fn sign_ns(
                     for (key, val) in body.headers {
                         builder = builder.add_header(&key, &val);
                     }
-                    match builder.build(&s3, &country) {
+                    match builder.build(&s3, country) {
                         Ok(uri) => (
                             StatusCode::OK,
                             [(CONTENT_TYPE, "application/json")],

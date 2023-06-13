@@ -26,7 +26,7 @@ pub async fn backend_read(
 
 async fn read_ns(
     ctx: Arc<AppContext>,
-    country: String,
+    country: Option<String>,
     back: String,
     set: String,
     object: String,
@@ -72,7 +72,7 @@ async fn read_ns(
                     let bucket = set_s.bucket().to_string();
                     let object = s3_object(set_s.label(), &object);
 
-                    match s3.presigned_url(&country, "GET", &bucket, &object) {
+                    match s3.presigned_url(country, "GET", &bucket, &object) {
                         Ok(uri) => redirect(uri),
                         Err(err) => wrap_error(
                             ErrorKind::ObjectReadingError,

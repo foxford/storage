@@ -1,7 +1,4 @@
-use crate::{
-    app::error::{Error, ErrorKind},
-    s3::DEFAULT_COUNTRY_CODE,
-};
+use crate::app::error::{Error, ErrorKind};
 use axum::{
     async_trait,
     extract::{Extension, FromRequestParts},
@@ -13,7 +10,7 @@ use std::sync::Arc;
 use tracing::{error, field, Span};
 
 /// Extracts iso code of country from ip address.
-pub struct CountryExtractor(pub String);
+pub struct CountryExtractor(pub Option<String>);
 
 #[async_trait]
 impl<S: Send + Sync> FromRequestParts<S> for CountryExtractor {
@@ -32,21 +29,20 @@ impl<S: Send + Sync> FromRequestParts<S> for CountryExtractor {
                 Ok(ip) => ip,
                 Err((_, err)) => {
                     error!("error retrieve ip address: {}", err);
-                    return Ok(Self(DEFAULT_COUNTRY_CODE.to_string()));
+                    return Ok(Self(None));
                 }
             };
 
         Span::current().record("ip_address", &field::display(&ip_address));
 
-        let country: String = match maxmind.lookup::<Country>(ip_address) {
+        let country: Option<String> = match maxmind.lookup::<Country>(ip_address) {
             Ok(country) => country
                 .country
                 .and_then(|c| c.iso_code)
-                .map(|c| c.to_string())
-                .unwrap_or_else(|| DEFAULT_COUNTRY_CODE.to_string()),
+                .map(|c| c.to_string()),
             Err(err) => {
                 error!("maxminddb error: {}", err);
-                DEFAULT_COUNTRY_CODE.to_string()
+                None
             }
         };
 

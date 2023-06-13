@@ -7,17 +7,16 @@ use std::{
 use anyhow::{Context, Result};
 use rusoto_core::{credential::AwsCredentials, signature::SignedRequest, Region};
 use url::Url;
+use isocountry::CountryCode;
 
 use crate::app::util::ProxyHost;
-
-pub const DEFAULT_COUNTRY_CODE: &str = "ru";
 
 #[derive(Debug)]
 pub struct Client {
     credentials: AwsCredentials,
     region: Region,
     expires_in: Duration,
-    proxy_hosts: Option<BTreeMap<String, Vec<String>>>,
+    proxy_hosts: Option<BTreeMap<Option<String>, Vec<String>>>,
     counter: AtomicUsize,
 }
 
@@ -45,35 +44,58 @@ impl Client {
     }
 
     pub fn set_proxy_hosts(&mut self, hosts: &[ProxyHost]) -> &mut Self {
-        let mut resulting_hosts: BTreeMap<String, Vec<String>> = BTreeMap::new();
+        let mut country_hosts: BTreeMap<String, Vec<String>> = BTreeMap::new();
+        let mut unbounded_hosts: Vec<String> = Vec::new();
 
         for host in hosts {
-            let country_code = host
+            match host
                 .country
                 .clone()
                 .map(|x| x.as_str().to_lowercase())
-                .unwrap_or(DEFAULT_COUNTRY_CODE.to_string());
-            match host.alias_range_upper_bound {
-                Some(upper_bound) => {
-                    for alias_index in 1..=upper_bound {
-                        let host_uri = format!("{}.{}", alias_index, host.base);
-                        if let Some(hosts) = resulting_hosts.get_mut(&country_code) {
-                            hosts.push(host_uri);
-                        } else {
-                            resulting_hosts.insert(country_code.clone(), vec![host_uri]);
+            {
+                Some(country_code) => {
+                    match host.alias_range_upper_bound {
+                        Some(upper_bound) => {
+                            for alias_index in 1..=upper_bound {
+                                let host_uri = format!("{}.{}", alias_index, host.base);
+                                if let Some(hosts) = country_hosts.get_mut(&country_code) {
+                                    hosts.push(host_uri);
+                                } else {
+                                    country_hosts.insert(country_code.clone(), vec![host_uri]);
+                                }
+                            }
+                        }
+                        None => {
+                            let host_uri = host.base.to_owned();
+                            if let Some(hosts) = country_hosts.get_mut(&country_code) {
+                                hosts.push(host_uri);
+                            } else {
+                                country_hosts.insert(country_code, vec![host_uri]);
+                            }
                         }
                     }
-                }
+                },
                 None => {
-                    let host_uri = host.base.to_owned();
-                    if let Some(hosts) = resulting_hosts.get_mut(&country_code) {
-                        hosts.push(host_uri);
-                    } else {
-                        resulting_hosts.insert(country_code, vec![host_uri]);
-                    }
+                    match host.alias_range_upper_bound {
+                        Some(upper_bound) => {
+                            for alias_index in 1..=upper_bound {
+                                let host_uri = format!("{}.{}", alias_index, host.base);
+                                unbounded_hosts.push(host_uri);
+                            }
+                        }
+                        None => unbounded_hosts.push(host.base.to_owned()),
+                    }                    
                 }
             }
         }
+
+        let mut resulting_hosts: BTreeMap<Option<String>, Vec<String>> = BTreeMap::new();
+        for country in CountryCode::as_array_alpha2() {
+            let iso_code = country.alpha2().to_lowercase().to_string();
+            let hosts = country_hosts.get(&iso_code).unwrap_or(&unbounded_hosts);
+            resulting_hosts.insert(Some(iso_code), hosts.to_vec());
+        }
+        resulting_hosts.insert(None, unbounded_hosts);
 
         self.proxy_hosts = Some(resulting_hosts);
         self
@@ -84,11 +106,11 @@ impl Client {
         SignedRequest::new(method, "s3", &self.region, &uri)
     }
 
-    fn get_proxy_hosts(&self, country: &String) -> Option<&Vec<String>> {
-        self.proxy_hosts.as_ref().and_then(|c| c.get(country))
+    fn get_proxy_hosts(&self, country: Option<String>) -> Option<&Vec<String>> {
+        self.proxy_hosts.as_ref().and_then(|c| c.get(&country))
     }
 
-    pub fn sign_request(&self, req: &mut SignedRequest, country: &String) -> Result<String> {
+    pub fn sign_request(&self, req: &mut SignedRequest, country: Option<String>) -> Result<String> {
         let url = req.generate_presigned_url(&self.credentials, &self.expires_in, false);
 
         if let Some(proxy_hosts) = self.get_proxy_hosts(country) {
@@ -107,7 +129,7 @@ impl Client {
 
     pub fn presigned_url(
         &self,
-        country: &String,
+        country: Option<String>,
         method: &str,
         bucket: &str,
         object: &str,
