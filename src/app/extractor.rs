@@ -34,6 +34,7 @@ impl<S: Send + Sync> FromRequestParts<S> for AccountIdExtractor {
             ))?;
 
         error!("Authorization header: {:?}", parts.headers.get("Authorization"));
+        error!("Query: {:?}", url::form_urlencoded::parse(parts.uri.query().unwrap_or("").as_bytes()));
         let auth_header = parts
             .headers
             .get("Authorization")
@@ -54,6 +55,7 @@ impl<S: Send + Sync> FromRequestParts<S> for AccountIdExtractor {
                     )),
                 )
             })?;
+        error!("Authorization header2: {:?}", auth_header);
 
         let claims = decode_jws_compact_with_config::<String>(auth_header, &authn)
             .map_err(|e| {
