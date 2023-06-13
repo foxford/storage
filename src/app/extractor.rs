@@ -9,7 +9,7 @@ use svc_agent::AccountId;
 use svc_authn::jose::ConfigMap as AuthnConfig;
 use svc_authn::token::jws_compact::extract::decode_jws_compact_with_config;
 use svc_error::Error;
-use tracing::{error, field, Span};
+use tracing::{field, Span};
 
 /// Extracts `AccountId` from "Authorization: Bearer ..." headers.
 pub struct AccountIdExtractor(pub AccountId);
@@ -37,36 +37,38 @@ impl<S: Send + Sync> FromRequestParts<S> for AccountIdExtractor {
             .headers
             .get("Authorization")
             .and_then(|x| x.to_str().ok())
-            .and_then(|x| x.get("Bearer ".len()..))
-            .unwrap_or_else(|| {
-                url::form_urlencoded::parse(parts.uri.query().unwrap_or("").as_bytes())
-                    .find(|(key, _)| key == "access_token")
-                    .map(|(_, val)| val)
-            })
-            .map_err(|_| {
-                (
+            .and_then(|x| x.get("Bearer ".len()..));
+        let access_token = url::form_urlencoded::parse(parts.uri.query().unwrap_or("").as_bytes())
+            .find(|(key, _)| key == "access_token")
+            .map(|(_, val)| val);
+
+        let claims = match (auth_header, access_token) {
+            (Some(token), _) => decode_jws_compact_with_config::<String>(token, &authn),
+            (_, Some(token)) => decode_jws_compact_with_config::<String>(&token, &authn),
+            (None, None) => {
+                return Err((
                     StatusCode::UNAUTHORIZED,
                     Json(Error::new(
                         "invalid_authentication",
                         "Invalid authentication",
                         StatusCode::UNAUTHORIZED,
                     )),
-                )
-            })?;
-
-        let claims = decode_jws_compact_with_config::<String>(auth_header, &authn)
-            .map_err(|e| {
-                let err = e.to_string();
-                (
+                ))
+            }
+        }
+        .map_err(|e| {
+            let err = e.to_string();
+            (
+                StatusCode::UNAUTHORIZED,
+                Json(Error::new(
+                    "invalid_authentication",
+                    &err,
                     StatusCode::UNAUTHORIZED,
-                    Json(Error::new(
-                        "invalid_authentication",
-                        &err,
-                        StatusCode::UNAUTHORIZED,
-                    )),
-                )
-            })?
-            .claims;
+                )),
+            )
+        })?
+        .claims;
+
         let account_id = AccountId::new(claims.subject(), claims.audience());
 
         Span::current().record("account_id", &field::display(&account_id));
