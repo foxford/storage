@@ -29,7 +29,7 @@ spec:
           command: ["/bin/sh"]
           args: >
             -c
-            aws s3 cp {{ .Values.maxMindS3Path }} ./maxmind.tar.gz --endpoint=$AWS_ENDPOINT;
+            aws s3 cp --endpoint="${AWS_ENDPOINT}" --only-show-errors {{ .Values.maxMindS3Path }} maxmind.tar.gz;
             tar -xf ./maxmind.tar.gz;
             cp `find . -type f -name "*.mmdb"` /maxmind/maxmind.mmdb;
           volumeMounts:

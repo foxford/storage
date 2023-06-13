@@ -5,9 +5,9 @@ use std::{
 };
 
 use anyhow::{Context, Result};
+use isocountry::CountryCode;
 use rusoto_core::{credential::AwsCredentials, signature::SignedRequest, Region};
 use url::Url;
-use isocountry::CountryCode;
 
 use crate::app::util::ProxyHost;
 
@@ -48,44 +48,36 @@ impl Client {
         let mut unbounded_hosts: Vec<String> = Vec::new();
 
         for host in hosts {
-            match host
-                .country
-                .clone()
-                .map(|x| x.as_str().to_lowercase())
-            {
-                Some(country_code) => {
-                    match host.alias_range_upper_bound {
-                        Some(upper_bound) => {
-                            for alias_index in 1..=upper_bound {
-                                let host_uri = format!("{}.{}", alias_index, host.base);
-                                if let Some(hosts) = country_hosts.get_mut(&country_code) {
-                                    hosts.push(host_uri);
-                                } else {
-                                    country_hosts.insert(country_code.clone(), vec![host_uri]);
-                                }
-                            }
-                        }
-                        None => {
-                            let host_uri = host.base.to_owned();
+            match host.country.clone().map(|x| x.as_str().to_lowercase()) {
+                Some(country_code) => match host.alias_range_upper_bound {
+                    Some(upper_bound) => {
+                        for alias_index in 1..=upper_bound {
+                            let host_uri = format!("{}.{}", alias_index, host.base);
                             if let Some(hosts) = country_hosts.get_mut(&country_code) {
                                 hosts.push(host_uri);
                             } else {
-                                country_hosts.insert(country_code, vec![host_uri]);
+                                country_hosts.insert(country_code.clone(), vec![host_uri]);
                             }
                         }
                     }
-                },
-                None => {
-                    match host.alias_range_upper_bound {
-                        Some(upper_bound) => {
-                            for alias_index in 1..=upper_bound {
-                                let host_uri = format!("{}.{}", alias_index, host.base);
-                                unbounded_hosts.push(host_uri);
-                            }
+                    None => {
+                        let host_uri = host.base.to_owned();
+                        if let Some(hosts) = country_hosts.get_mut(&country_code) {
+                            hosts.push(host_uri);
+                        } else {
+                            country_hosts.insert(country_code.clone(), vec![host_uri]);
                         }
-                        None => unbounded_hosts.push(host.base.to_owned()),
-                    }                    
-                }
+                    }
+                },
+                None => match host.alias_range_upper_bound {
+                    Some(upper_bound) => {
+                        for alias_index in 1..=upper_bound {
+                            let host_uri = format!("{}.{}", alias_index, host.base);
+                            unbounded_hosts.push(host_uri);
+                        }
+                    }
+                    None => unbounded_hosts.push(host.base.to_owned()),
+                },
             }
         }
 
