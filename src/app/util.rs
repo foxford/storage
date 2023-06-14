@@ -1,28 +1,28 @@
-use anyhow::format_err;
+use anyhow::{anyhow, format_err, Result};
 use radix_trie::Trie;
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use std::ops::Deref;
 use svc_authn::{AccountId, Authenticable};
 
 use crate::db::{Bucket, Set};
 use crate::s3::Client;
-use crate::tower_web::Error;
 
 ////////////////////////////////////////////////////////////////////////////////
 
-pub(crate) const S3_DEFAULT_CLIENT: &str = "default";
-pub(crate) type S3Clients = BTreeMap<String, ::std::sync::Arc<crate::s3::Client>>;
+pub const S3_DEFAULT_CLIENT: &str = "default";
+pub type S3Clients = BTreeMap<String, ::std::sync::Arc<crate::s3::Client>>;
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#[derive(Debug, Deserialize)]
-pub(crate) struct BackendConfig {
+#[derive(Clone, Debug, Deserialize)]
+pub struct BackendConfig {
     default: String,
     alt: BTreeMap<String, AltBackendConfig>,
 }
 
-#[derive(Debug, Deserialize)]
-pub(crate) struct AltBackendConfig {
+#[derive(Clone, Debug, Deserialize)]
+pub struct AltBackendConfig {
     proxy_hosts: Option<Vec<ProxyHost>>,
 }
 
@@ -32,15 +32,15 @@ impl AltBackendConfig {
     }
 }
 
-#[derive(Debug, Deserialize)]
-pub(crate) struct ProxyHost {
+#[derive(Clone, Debug, Deserialize)]
+pub struct ProxyHost {
     pub base: String,
     pub alias_range_upper_bound: Option<usize>,
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-pub(crate) fn read_s3_config(config: Option<&BackendConfig>) -> anyhow::Result<S3Clients> {
+pub fn read_s3_config(config: Option<&BackendConfig>) -> anyhow::Result<S3Clients> {
     let mut acc = S3Clients::new();
 
     if let Some(back) = config {
@@ -97,7 +97,7 @@ fn read_s3(back: &str, prefix: &str, alt: &AltBackendConfig, acc: &mut S3Clients
 ////////////////////////////////////////////////////////////////////////////////
 
 #[derive(Debug)]
-pub(crate) struct S3SignedRequestBuilder {
+pub struct S3SignedRequestBuilder {
     method: Option<String>,
     bucket: Option<String>,
     object: Option<String>,
@@ -105,7 +105,7 @@ pub(crate) struct S3SignedRequestBuilder {
 }
 
 impl S3SignedRequestBuilder {
-    pub(crate) fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             method: None,
             bucket: None,
@@ -114,53 +114,44 @@ impl S3SignedRequestBuilder {
         }
     }
 
-    pub(crate) fn method(self, value: &str) -> Self {
+    pub fn method(self, value: &str) -> Self {
         Self {
             method: Some(value.to_string()),
             ..self
         }
     }
 
-    pub(crate) fn bucket(self, value: &str) -> Self {
+    pub fn bucket(self, value: &str) -> Self {
         Self {
             bucket: Some(value.to_string()),
             ..self
         }
     }
 
-    pub(crate) fn object(self, value: &str) -> Self {
+    pub fn object(self, value: &str) -> Self {
         Self {
             object: Some(value.to_string()),
             ..self
         }
     }
 
-    pub(crate) fn add_header(self, key: &str, value: &str) -> Self {
+    pub fn add_header(self, key: &str, value: &str) -> Self {
         let mut headers = self.headers;
         headers.insert(key.to_string(), value.to_string());
         Self { headers, ..self }
     }
 
-    pub(crate) fn build(self, client: &Client) -> Result<String, Error> {
-        let unproc_error = || {
-            Error::builder()
-                .kind(
-                    "s3_signed_request_builder_error",
-                    "Error building a signed request",
-                )
-                .status(http::StatusCode::INTERNAL_SERVER_ERROR)
-        };
-
+    pub fn build(self, client: &Client) -> Result<String> {
         let mut req = client.create_request(
             &self
                 .method
-                .ok_or_else(|| unproc_error().detail("missing method").build())?,
+                .ok_or_else(|| anyhow!("Error building a signed request. missing method."))?,
             &self
                 .bucket
-                .ok_or_else(|| unproc_error().detail("missing bucket").build())?,
+                .ok_or_else(|| anyhow!("Error building a signed request. missing bucket"))?,
             &self
                 .object
-                .ok_or_else(|| unproc_error().detail("missing object").build())?,
+                .ok_or_else(|| anyhow!("Error building a signed request. missing object"))?,
         );
         for (key, val) in self.headers {
             req.add_header(&key, &val);
@@ -168,19 +159,19 @@ impl S3SignedRequestBuilder {
 
         client
             .sign_request(&mut req)
-            .map_err(|err| unproc_error().detail(&err.to_string()).build())
+            .map_err(|err| anyhow!("Error building a signed request. {}", &err.to_string()))
     }
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 
-#[derive(Debug)]
-pub(crate) struct AudienceEstimator {
+#[derive(Clone, Debug)]
+pub struct AudienceEstimator {
     inner: Trie<String, String>,
 }
 
 impl AudienceEstimator {
-    pub(crate) fn new(config: &svc_authz::ConfigMap) -> Self {
+    pub fn new(config: &svc_authz::ConfigMap) -> Self {
         let mut inner = Trie::new();
         config.iter().for_each(|(key, _val)| {
             let rkey = key.split('.').rev().collect::<Vec<&str>>().join(".");
@@ -189,42 +180,18 @@ impl AudienceEstimator {
         Self { inner }
     }
 
-    pub(crate) fn estimate(&self, bucket: &str) -> Result<&str, Error> {
-        let unproc_error = || {
-            Error::builder()
-                .kind(
-                    "audience_estimator_error",
-                    "Error estimating an audience of the bucket",
-                )
-                .status(http::StatusCode::INTERNAL_SERVER_ERROR)
-        };
-
+    pub fn estimate(&self, bucket: &str) -> Result<&str> {
         let rbucket = bucket.split('.').rev().collect::<Vec<&str>>().join(".");
         self.inner
             .get_ancestor_value(&rbucket)
             .map(|aud| aud.as_ref())
-            .ok_or_else(|| {
-                unproc_error()
-                    .detail(&format!("invalid bucket = '{}'", bucket))
-                    .build()
-            })
+            .ok_or_else(|| anyhow!("Error estimating an audience of the bucket('{}')", bucket))
     }
 
-    pub(crate) fn parse_bucket(&self, value: &str) -> Result<Bucket, Error> {
-        self.estimate(value)
-            .map(|audience| Bucket::new(Self::bucket_label(value, audience), audience))
-    }
-
-    pub(crate) fn parse_set(&self, value: &str) -> Result<Set, Error> {
-        let unproc_error = || {
-            Error::builder()
-                .kind("audience_estimator_parsing_error", "Error parsing a set")
-                .status(http::StatusCode::INTERNAL_SERVER_ERROR)
-        };
-
+    pub fn parse_set(&self, value: &str) -> Result<Set> {
         let parts: Vec<&str> = value.split("::").collect();
         if parts.len() < 2 {
-            return Err(unproc_error().detail(&format!("set = '{}'", value)).build());
+            return Err(anyhow!("Error parsing a set('{}')", value));
         }
 
         let bucket_value = parts[0];
@@ -279,89 +246,6 @@ mod jose {
     impl From<Claims<String>> for Subject {
         fn from(value: Claims<String>) -> Self {
             Self::new(AccountId::new(value.subject(), value.audience()))
-        }
-    }
-}
-
-////////////////////////////////////////////////////////////////////////////////
-
-mod tower_web {
-    use super::{S3SignedRequestBuilder, Subject};
-
-    mod extract {
-        use http::StatusCode;
-        use tower_web::extract::{Context, Error, Extract, Immediate};
-        use tower_web::util::BufStream;
-
-        use svc_authn::token::jws_compact::extract::{
-            decode_jws_compact_with_config, extract_jws_compact,
-        };
-        use svc_authn::AccountId;
-
-        use crate::app::config::Config;
-
-        use super::{S3SignedRequestBuilder, Subject};
-
-        impl<B: BufStream> Extract<B> for S3SignedRequestBuilder {
-            type Future = Immediate<S3SignedRequestBuilder>;
-
-            fn extract(context: &Context) -> Self::Future {
-                let mut builder = S3SignedRequestBuilder::new();
-                let headers = context.request().headers();
-                for (key, val) in headers {
-                    match val.to_str() {
-                        Ok(val) => builder = builder.add_header(key.as_str(), val),
-                        Err(err) => return Immediate::err(Error::invalid_argument(&err)),
-                    }
-                }
-                Immediate::ok(builder)
-            }
-        }
-
-        impl<B: BufStream> Extract<B> for Subject {
-            type Future = Immediate<Subject>;
-
-            fn extract(context: &Context) -> Self::Future {
-                let config = context.config::<Config>().expect("missing config");
-                let h = context.request().headers().get(http::header::AUTHORIZATION);
-                let q = url::form_urlencoded::parse(
-                    context.request().uri().query().unwrap_or("").as_bytes(),
-                )
-                .find(|(key, _)| key == "access_token")
-                .map(|(_, val)| val);
-
-                match (h, q) {
-                    (Some(header), _) => match extract_jws_compact(header, &config.authn) {
-                        Ok(data) => Immediate::ok(data.claims.into()),
-                        Err(ref err) => {
-                            Immediate::err(error(&err.to_string(), StatusCode::UNAUTHORIZED))
-                        }
-                    },
-                    (_, Some(token)) => {
-                        match decode_jws_compact_with_config::<String>(&token, &config.authn) {
-                            Ok(data) => Immediate::ok(data.claims.into()),
-                            Err(ref err) => {
-                                Immediate::err(error(&err.to_string(), StatusCode::UNAUTHORIZED))
-                            }
-                        }
-                    }
-                    (None, None) => {
-                        let audience = config.id.audience();
-                        let anonymous = AccountId::new("anonymous", audience);
-                        Immediate::ok(Subject::new(anonymous))
-                    }
-                }
-            }
-        }
-
-        fn error(detail: &str, status: StatusCode) -> Error {
-            let mut err = tower_web::Error::new(
-                "authn_error",
-                "Error processing the authentication token",
-                status,
-            );
-            err.set_detail(detail);
-            err.into()
         }
     }
 }

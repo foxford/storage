@@ -3,6 +3,7 @@
 ._*
 .Spotlight-V100
 .Trashes
+.env
 
 # Vim
 .*.sw[a-z]
@@ -17,3 +18,4 @@ App.toml
 /docs/book
 .idea
 deploy
+
