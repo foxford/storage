@@ -96,8 +96,3 @@ fn redirect(uri: String) -> Response {
     )
         .into_response()
 }
-
-fn wrap_error(status: StatusCode, msg: String) -> Response<String> {
-    error!("{}", msg);
-    Response::builder().status(status).body(msg).unwrap()
-}

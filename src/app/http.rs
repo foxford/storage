@@ -2,7 +2,6 @@ use axum::{
     body::Body,
     routing::{get, post},
     Extension, Router,
-    Extension, Router,
 };
 use http::{
     header::{self, HeaderName},
@@ -49,7 +48,6 @@ pub fn build_router(
             .layer(Extension(Arc::new(authn)))
             .layer(Extension(Arc::new(context.application_id.clone())))
             .layer(Extension(maxmind))
-            .layer(Extension(authn))
             .with_state(context),
     );
 
