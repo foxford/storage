@@ -46,6 +46,7 @@ pub fn build_router(context: Arc<AppContext>, authn: svc_authn::jose::ConfigMap)
             .route("/backends/:back/sign", post(endpoints::backend_sign))
             .layer(cors)
             .layer(Extension(Arc::new(authn)))
+            .layer(Extension(Arc::new(context.application_id.clone())))
             .with_state(context),
     );
 
