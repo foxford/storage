@@ -23,13 +23,14 @@ spec:
         - image: "{{ .Values.networkTester.image.repository }}:{{ .Values.networkTester.image.tag }}"
           imagePullPolicy: IfNotPresent
           name: network-tester
+        {{- if .Values.maxMindS3.enabled }}
         - image: amazon/aws-cli:2.11
           imagePullPolicy: IfNotPresent
           name: maxminddb-download
           command: ["/bin/sh"]
           args: >
             -c
-            aws s3 cp --endpoint="${AWS_ENDPOINT}" --only-show-errors {{ .Values.maxMindS3Path }} maxmind.tar.gz;
+            aws s3 cp --endpoint="${AWS_ENDPOINT}" --only-show-errors {{ .Values.maxMindS3.path }} maxmind.tar.gz;
             tar -xf ./maxmind.tar.gz;
             cp `find . -type f -name "*.mmdb"` /maxmind/maxmind.mmdb;
           volumeMounts:
@@ -56,19 +57,21 @@ spec:
               secretKeyRef:
                 name: {{ (get .Values.app.s3.alt .Values.app.s3.default).secret }}
                 key: region
-
+        {{- end }}
       containers:
         - name: storage
           image: "{{ .Values.app.image.repository }}:{{ .Values.app.image.tag }}"
           ports:
             - containerPort: {{ .Values.clusterService.ports.http }}
           volumeMounts:
-            - name: maxmind
-              mountPath: /app/maxmind.mmdb
-              subPath: maxmind.mmdb
             - name: config
               mountPath: /app/App.toml
               subPath: App.toml
+            {{- if .Values.maxMindS3.enabled }}
+            - name: maxmind
+              mountPath: /app/maxmind.mmdb
+              subPath: maxmind.mmdb
+            {{- end }}
             {{- with .Values.app.svc }}
             {{- $audience := .audience }}
             {{- range $secret, $mounts := .credentials }}
@@ -136,8 +139,10 @@ spec:
               exec:
                 command: ["sleep", "{{ .Values.preStopSleepSeconds }}"]
       volumes:
+        {{- if .Values.maxMindS3.enabled }}
         - name: maxmind
           emptyDir: {}
+        {{- end }}
         - name: config
           configMap:
             name: {{ include "storage.fullname" . }}-app
