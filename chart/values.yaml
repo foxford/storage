@@ -39,4 +39,6 @@ tls:
 
 maxMindS3:
   enabled: true
+  cronRestart: true
   path: s3://apps-data/dev/maxmind/GeoIP2-Country.tar.gz
+  
