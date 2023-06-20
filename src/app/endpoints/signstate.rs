@@ -25,16 +25,6 @@ pub struct SignPayload {
     headers: BTreeMap<String, String>,
 }
 
-pub async fn sign(
-    State(ctx): State<Arc<AppContext>>,
-    AccountIdExtractor(sub): AccountIdExtractor,
-    headers: HeaderMap,
-    Json(payload): Json<SignPayload>,
-) -> Response<String> {
-    let back = String::from(crate::app::util::S3_DEFAULT_CLIENT);
-    sign_ns(ctx, back, payload, sub, headers.get(REFERER)).await
-}
-
 pub async fn backend_sign(
     State(ctx): State<Arc<AppContext>>,
     AccountIdExtractor(sub): AccountIdExtractor,

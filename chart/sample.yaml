@@ -2,13 +2,11 @@ app:
   image:
     tag: "1.2.3"
   s3:
-    default: yandex
-    alt:
-      yandex:
-        secret: yandex-storage-credentials
-        # new config version
-        proxyHosts:
-          - base: storage-lb.test.net
+    yandex:
+      secret: yandex-storage-credentials
+      # new config version
+      proxyHosts:
+        - base: storage-lb.test.net
   svc:
     audience: svc.test.net
     credentials:

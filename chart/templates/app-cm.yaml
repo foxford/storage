@@ -20,14 +20,12 @@ data:
     ##
     ## S3-compatible underlying backends
     ##
-    [backend]
-    default = {{ .Values.app.s3.default | quote }}
-    {{- range $key, $value := .Values.app.s3.alt }}
-    [backend.alt.{{ $key }}]
+    {{- range $key, $value := .Values.app.s3 }}
+    [backend.{{ $key }}]
 
     {{- if $value.proxyHosts }}
     {{- range $host := $value.proxyHosts }}
-    [[backend.alt.{{ $key }}.proxy_hosts]]
+    [[backend.{{ $key }}.proxy_hosts]]
     base = {{ $host.base | quote }}
     {{- if $host.aliasRangeUpperBound }}
     alias_range_upper_bound = {{ $host.aliasRangeUpperBound }}
