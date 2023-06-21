@@ -4,7 +4,6 @@ app:
   s3:
     yandex:
       secret: yandex-storage-credentials
-      # new config version
       proxyHosts:
         - base: storage-lb.test.net
   svc:
