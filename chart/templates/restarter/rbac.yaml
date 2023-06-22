@@ -1,4 +1,4 @@
-{{- if and .Values.maxmind.enabled (ge (keys .Values.app.s3 | len) 1) }}
+{{- if and .Values.maxmind (ge (keys .Values.app.s3 | len) 1) }}
 ---
 apiVersion: v1
 kind: ServiceAccount

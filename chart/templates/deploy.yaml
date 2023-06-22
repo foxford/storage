@@ -23,7 +23,7 @@ spec:
         - image: "{{ .Values.networkTester.image.repository }}:{{ .Values.networkTester.image.tag }}"
           imagePullPolicy: IfNotPresent
           name: network-tester
-        {{- if .Values.maxmind.enabled }}
+        {{- if .Values.maxmind }}
         - image: amazon/aws-cli:2.11
           imagePullPolicy: IfNotPresent
           name: maxminddb-download
@@ -69,7 +69,7 @@ spec:
             - name: config
               mountPath: /app/App.toml
               subPath: App.toml
-            {{- if .Values.maxmind.enabled }}
+            {{- if .Values.maxmind }}
             - name: maxmind
               mountPath: /app/maxmind.mmdb
               subPath: maxmind.mmdb
@@ -141,7 +141,7 @@ spec:
               exec:
                 command: ["sleep", "{{ .Values.preStopSleepSeconds }}"]
       volumes:
-        {{- if .Values.maxmind.enabled }}
+        {{- if .Values.maxmind }}
         - name: maxmind
           emptyDir: {}
         {{- end }}

@@ -38,7 +38,4 @@ clusterService:
 tls:
   secretName: tls-certificates
 
-maxmind:
-  enabled: true
-  path: s3://path/to/db
-  updateSchedule: "0 1 * * *"
+maxmind: {}
