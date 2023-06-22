@@ -1,8 +1,10 @@
 id = "storage.svc.example.org"
 
 [backend]
+[backend.yandex]
 [backend.yandex.proxy_hosts.ru]
 base = "router.example.org"
+alias_range_upper_bound = 2
 
 [authn."iam.svc.example.net"]
 audience = ["usr.example.net"]

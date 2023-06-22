@@ -1,4 +1,4 @@
-{{- if and .Values.maxmind (ge (keys .Values.app.s3 | len) 1) }}
+{{- if and .Values.maxmind .Values.maxmind.updateSchedule }}
 ---
 apiVersion: v1
 kind: ServiceAccount

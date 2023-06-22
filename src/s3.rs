@@ -15,7 +15,7 @@ pub struct Client {
     credentials: AwsCredentials,
     region: Region,
     expires_in: Duration,
-    proxy_hosts: BTreeMap<String, Vec<String>>,
+    proxy_hosts: Option<BTreeMap<String, Vec<String>>>,
     counter: AtomicUsize,
 }
 
@@ -26,7 +26,6 @@ impl Client {
         region: &str,
         endpoint: &str,
         expires_in: Duration,
-        hosts: HashMap<String, ProxyHost>,
     ) -> Client {
         let region = Region::Custom {
             name: region.to_string(),
@@ -38,9 +37,35 @@ impl Client {
             credentials,
             region,
             expires_in,
-            proxy_hosts: build_proxy_hosts(hosts),
+            proxy_hosts: None,
             counter: AtomicUsize::new(0),
         }
+    }
+
+    pub fn set_proxy_hosts(&mut self, hosts: &HashMap<String, ProxyHost>) -> &mut Self {
+        let mut proxy_hosts: BTreeMap<String, Vec<String>> = BTreeMap::new();
+
+        for (country, host) in hosts {
+            let country_code = country.as_str().to_lowercase();
+            match host.alias_range_upper_bound {
+                Some(upper_bound) => {
+                    for alias_index in 1..=upper_bound {
+                        let host_uri = format!("{}.{}", alias_index, host.base);
+
+                        proxy_hosts
+                            .entry(country_code.clone())
+                            .and_modify(|h| h.push(host_uri.clone()))
+                            .or_insert(vec![host_uri]);
+                    }
+                }
+                None => {
+                    proxy_hosts.insert(country_code.clone(), vec![host.base.to_owned()]);
+                }
+            }
+        }
+
+        self.proxy_hosts = Some(proxy_hosts);
+        self
     }
 
     pub fn create_request(&self, method: &str, bucket: &str, object: &str) -> SignedRequest {
@@ -49,7 +74,7 @@ impl Client {
     }
 
     fn get_proxy_hosts(&self, country: Option<String>) -> Option<&Vec<String>> {
-        country.and_then(|c| self.proxy_hosts.get(&c))
+        country.and_then(|c| self.proxy_hosts.as_ref()?.get(&c))
     }
 
     pub fn sign_request(&self, req: &mut SignedRequest, country: Option<String>) -> Result<String> {
@@ -80,39 +105,21 @@ impl Client {
     }
 }
 
-fn build_proxy_hosts(hosts: HashMap<String, ProxyHost>) -> BTreeMap<String, Vec<String>> {
-    let mut proxy_hosts: BTreeMap<String, Vec<String>> = BTreeMap::new();
-
-    for (country, host) in hosts {
-        let country_code = country.as_str().to_lowercase();
-        match host.alias_range_upper_bound {
-            Some(upper_bound) => {
-                for alias_index in 1..=upper_bound {
-                    let host_uri = format!("{}.{}", alias_index, host.base);
-
-                    proxy_hosts
-                        .entry(country_code.clone())
-                        .and_modify(|h| h.push(host_uri.clone()))
-                        .or_insert(vec![host_uri]);
-                }
-            }
-            None => {
-                proxy_hosts.insert(country_code.clone(), vec![host.base.to_owned()]);
-            }
-        }
-    }
-
-    proxy_hosts
-}
-
 #[cfg(test)]
 mod tests {
-    use crate::app::util::ProxyHost;
-    use crate::s3::build_proxy_hosts;
+    use crate::{app::util::ProxyHost, s3::Client};
     use std::collections::{BTreeMap, HashMap};
 
     #[test]
-    fn build_proxy_hosts_test() {
+    fn set_proxy_hosts_test() {
+        let mut client = Client::new(
+            "key",
+            "secret",
+            "region",
+            "endpoint",
+            ::std::time::Duration::from_secs(300),
+        );
+
         let mut hosts = HashMap::new();
         let ua_host = ProxyHost {
             base: "ua.example.org".to_string(),
@@ -126,7 +133,7 @@ mod tests {
         };
         hosts.insert("es".to_string(), es_host);
 
-        let result = build_proxy_hosts(hosts);
+        let result = client.set_proxy_hosts(&hosts);
 
         let mut expected = BTreeMap::new();
         expected.insert(
@@ -138,6 +145,6 @@ mod tests {
         );
         expected.insert("es".to_string(), vec!["es.example.org".to_string()]);
 
-        assert_eq!(result, expected);
+        assert_eq!(result.proxy_hosts, Some(expected));
     }
 }

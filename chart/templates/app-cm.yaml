@@ -22,6 +22,7 @@ data:
     ##
     [backend]
     {{- range $backend, $value := .Values.app.s3 }}
+    [backend.{{ $backend }}]
     {{- if $value.proxyHosts }}
     {{- range $country, $host := $value.proxyHosts }}
     [backend.{{ $backend }}.proxy_hosts.{{ $country }}]
