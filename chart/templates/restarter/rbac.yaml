@@ -1,4 +1,4 @@
-{{- if and .Values.maxMindS3.enabled .Values.maxMindS3.cronRestart  }}
+{{- if and .Values.maxmind.enabled (ge (keys .Values.app.s3 | len) 1) }}
 ---
 apiVersion: v1
 kind: ServiceAccount

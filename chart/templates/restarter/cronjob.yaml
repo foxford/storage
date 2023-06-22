@@ -1,4 +1,4 @@
-{{- if and .Values.maxMindS3.enabled .Values.maxMindS3.cronRestart }}
+{{- if and .Values.maxmind.enabled (ge (keys .Values.app.s3 | len) 1) }}
 apiVersion: batch/v1
 kind: CronJob
 metadata:
@@ -6,7 +6,7 @@ metadata:
   labels:
     {{- include "storage.labels" . | nindent 4 }}
 spec:
-  schedule: "0 1 * * *"
+  schedule: {{ .Values.maxmind.updateSchedule | quote }}
   jobTemplate:
     spec:
       template:

@@ -1,12 +1,8 @@
 id = "storage.svc.example.org"
 
 [backend]
-default = "yandex"
-
-[backend.alt.yandex]
-[[backend.alt.yandex.proxy_hosts]]
-base = "https://default.s3.com"
-country = "ru"
+[backend.yandex.proxy_hosts.ru]
+base = "router.example.org"
 
 [authn."iam.svc.example.net"]
 audience = ["usr.example.net"]

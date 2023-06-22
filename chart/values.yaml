@@ -21,6 +21,7 @@ app:
       memory: 50Mi
     limits:
       memory: 100Mi
+  s3: {}
 
 env:
   RUST_LOG: info
@@ -37,8 +38,7 @@ clusterService:
 tls:
   secretName: tls-certificates
 
-maxMindS3:
+maxmind:
   enabled: true
-  cronRestart: true
-  path: s3://apps-data/dev/maxmind/GeoIP2-Country.tar.gz
-  
+  path: s3://path/to/db
+  updateSchedule: "0 1 * * *"

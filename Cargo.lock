@@ -983,16 +983,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "isocountry"
-version = "0.3.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1ea1dc4bf0fb4904ba83ffdb98af3d9c325274e92e6e295e4151e86c96363e04"
-dependencies = [
- "serde",
- "thiserror",
-]
-
-[[package]]
 name = "itertools"
 version = "0.10.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2149,7 +2139,6 @@ dependencies = [
  "env_logger",
  "futures",
  "http",
- "isocountry",
  "maxminddb",
  "openssl",
  "radix_trie",

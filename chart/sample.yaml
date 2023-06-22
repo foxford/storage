@@ -5,7 +5,9 @@ app:
     yandex:
       secret: yandex-storage-credentials
       proxyHosts:
-        - base: storage-lb.test.net
+        ru:
+          base: router.example.org
+          aliasRangeUpperBound: 2
   svc:
     audience: svc.test.net
     credentials:
@@ -41,3 +43,8 @@ ingress:
 legacyIngress:
   class: nginx
   host: example.org
+
+maxmind:
+  enabled: true
+  path: s3://path/to/db
+  updateSchedule: "0 1 * * *"

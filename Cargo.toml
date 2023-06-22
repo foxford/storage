@@ -28,6 +28,5 @@ svc-utils = { version = "0.7.3", features = ["authn-extractor", "log-middleware"
 tokio = "1.28"
 tower-http = { version = "0.4", features = ["trace", "cors"] }
 tracing = "0.1"
-isocountry = "0.3"
 url = "2.3"
 uuid = { version = "0.8", features = ["v4"] }

@@ -1,11 +1,10 @@
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, HashMap},
     sync::atomic::{AtomicUsize, Ordering},
     time::Duration,
 };
 
 use anyhow::{Context, Result};
-use isocountry::CountryCode;
 use rusoto_core::{credential::AwsCredentials, signature::SignedRequest, Region};
 use url::Url;
 
@@ -16,7 +15,7 @@ pub struct Client {
     credentials: AwsCredentials,
     region: Region,
     expires_in: Duration,
-    proxy_hosts: Option<BTreeMap<Option<String>, Vec<String>>>,
+    proxy_hosts: BTreeMap<String, Vec<String>>,
     counter: AtomicUsize,
 }
 
@@ -27,6 +26,7 @@ impl Client {
         region: &str,
         endpoint: &str,
         expires_in: Duration,
+        hosts: HashMap<String, ProxyHost>,
     ) -> Client {
         let region = Region::Custom {
             name: region.to_string(),
@@ -38,59 +38,9 @@ impl Client {
             credentials,
             region,
             expires_in,
-            proxy_hosts: None,
+            proxy_hosts: build_proxy_hosts(hosts),
             counter: AtomicUsize::new(0),
         }
-    }
-
-    pub fn set_proxy_hosts(&mut self, hosts: &[ProxyHost]) -> &mut Self {
-        let mut country_hosts: BTreeMap<String, Vec<String>> = BTreeMap::new();
-        let mut unbounded_hosts: Vec<String> = Vec::new();
-
-        for host in hosts {
-            match host.country.clone().map(|x| x.as_str().to_lowercase()) {
-                Some(country_code) => match host.alias_range_upper_bound {
-                    Some(upper_bound) => {
-                        for alias_index in 1..=upper_bound {
-                            let host_uri = format!("{}.{}", alias_index, host.base);
-                            if let Some(hosts) = country_hosts.get_mut(&country_code) {
-                                hosts.push(host_uri);
-                            } else {
-                                country_hosts.insert(country_code.clone(), vec![host_uri]);
-                            }
-                        }
-                    }
-                    None => {
-                        let host_uri = host.base.to_owned();
-                        if let Some(hosts) = country_hosts.get_mut(&country_code) {
-                            hosts.push(host_uri);
-                        } else {
-                            country_hosts.insert(country_code.clone(), vec![host_uri]);
-                        }
-                    }
-                },
-                None => match host.alias_range_upper_bound {
-                    Some(upper_bound) => {
-                        for alias_index in 1..=upper_bound {
-                            let host_uri = format!("{}.{}", alias_index, host.base);
-                            unbounded_hosts.push(host_uri);
-                        }
-                    }
-                    None => unbounded_hosts.push(host.base.to_owned()),
-                },
-            }
-        }
-
-        let mut resulting_hosts: BTreeMap<Option<String>, Vec<String>> = BTreeMap::new();
-        for country in CountryCode::as_array_alpha2() {
-            let iso_code = country.alpha2().to_lowercase().to_string();
-            let hosts = country_hosts.get(&iso_code).unwrap_or(&unbounded_hosts);
-            resulting_hosts.insert(Some(iso_code), hosts.to_vec());
-        }
-        resulting_hosts.insert(None, unbounded_hosts);
-
-        self.proxy_hosts = Some(resulting_hosts);
-        self
     }
 
     pub fn create_request(&self, method: &str, bucket: &str, object: &str) -> SignedRequest {
@@ -99,7 +49,7 @@ impl Client {
     }
 
     fn get_proxy_hosts(&self, country: Option<String>) -> Option<&Vec<String>> {
-        self.proxy_hosts.as_ref().and_then(|c| c.get(&country))
+        country.and_then(|c| self.proxy_hosts.get(&c))
     }
 
     pub fn sign_request(&self, req: &mut SignedRequest, country: Option<String>) -> Result<String> {
@@ -127,5 +77,67 @@ impl Client {
         object: &str,
     ) -> Result<String> {
         self.sign_request(&mut self.create_request(method, bucket, object), country)
+    }
+}
+
+fn build_proxy_hosts(hosts: HashMap<String, ProxyHost>) -> BTreeMap<String, Vec<String>> {
+    let mut proxy_hosts: BTreeMap<String, Vec<String>> = BTreeMap::new();
+
+    for (country, host) in hosts {
+        let country_code = country.as_str().to_lowercase();
+        match host.alias_range_upper_bound {
+            Some(upper_bound) => {
+                for alias_index in 1..=upper_bound {
+                    let host_uri = format!("{}.{}", alias_index, host.base);
+
+                    proxy_hosts
+                        .entry(country_code.clone())
+                        .and_modify(|h| h.push(host_uri.clone()))
+                        .or_insert(vec![host_uri]);
+                }
+            }
+            None => {
+                proxy_hosts.insert(country_code.clone(), vec![host.base.to_owned()]);
+            }
+        }
+    }
+
+    proxy_hosts
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::app::util::ProxyHost;
+    use crate::s3::build_proxy_hosts;
+    use std::collections::{BTreeMap, HashMap};
+
+    #[test]
+    fn build_proxy_hosts_test() {
+        let mut hosts = HashMap::new();
+        let ua_host = ProxyHost {
+            base: "ua.example.org".to_string(),
+            alias_range_upper_bound: Some(2),
+        };
+        hosts.insert("ua".to_string(), ua_host);
+
+        let es_host = ProxyHost {
+            base: "es.example.org".to_string(),
+            alias_range_upper_bound: None,
+        };
+        hosts.insert("es".to_string(), es_host);
+
+        let result = build_proxy_hosts(hosts);
+
+        let mut expected = BTreeMap::new();
+        expected.insert(
+            "ua".to_string(),
+            vec![
+                "1.ua.example.org".to_string(),
+                "2.ua.example.org".to_string(),
+            ],
+        );
+        expected.insert("es".to_string(), vec!["es.example.org".to_string()]);
+
+        assert_eq!(result, expected);
     }
 }

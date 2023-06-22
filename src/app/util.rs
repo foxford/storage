@@ -1,7 +1,11 @@
 use anyhow::{anyhow, Result};
 use radix_trie::Trie;
 use serde::{Deserialize, Serialize};
-use std::{collections::BTreeMap, ops::Deref, sync::Arc};
+use std::{
+    collections::{BTreeMap, HashMap},
+    ops::Deref,
+    sync::Arc,
+};
 use svc_authn::{AccountId, Authenticable};
 
 use crate::db::{Bucket, Set};
@@ -18,14 +22,13 @@ pub struct BackendConfig(BTreeMap<String, BackendConfigItem>);
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct BackendConfigItem {
-    proxy_hosts: Option<Vec<ProxyHost>>,
+    proxy_hosts: HashMap<String, ProxyHost>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct ProxyHost {
     pub base: String,
     pub alias_range_upper_bound: Option<usize>,
-    pub country: Option<String>,
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -51,17 +54,14 @@ fn read_s3(back: &str, prefix: &str, item: &BackendConfigItem, acc: &mut S3Clien
     let region = var(format!("{}AWS_REGION", prefix))
         .unwrap_or_else(|_| panic!("{}AWS_REGION must be specified", prefix));
 
-    let mut client = Client::new(
+    let client = Client::new(
         &key,
         &secret,
         &region,
         &endpoint,
         ::std::time::Duration::from_secs(300),
+        item.proxy_hosts.clone(),
     );
-
-    if let Some(ref proxy_hosts) = item.proxy_hosts {
-        client.set_proxy_hosts(proxy_hosts);
-    }
 
     acc.insert(back.to_owned(), Arc::new(client));
 }
