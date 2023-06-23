@@ -9,17 +9,21 @@ spec:
   ingressClassName: {{ .Values.legacyIngress.class | quote }}
   tls:
     - hosts:
-        - {{ .Values.legacyIngress.host | quote }}
+        {{- range $host := .Values.legacyIngress.hosts }}
+        - {{ $host | quote }}
+        {{- end }}
       secretName: {{ .Values.tls.secretName }}
   rules:
-    - host: {{ .Values.legacyIngress.host | quote }}
+    {{- range $host := .Values.legacyIngress.hosts }}
+    - host: {{ $host | quote }}
       http:
         paths:
           - path: /
             pathType: Prefix
             backend:
               service:
-                name: {{ include "storage.fullname" . }}-cluster
+                name: {{ include "storage.fullname" $ }}-cluster
                 port:
-                  number: {{ .Values.clusterService.ports.http }}
+                  number: {{ $.Values.clusterService.ports.http }}
+    {{- end }}
 {{- end }}

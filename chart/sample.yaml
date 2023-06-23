@@ -40,7 +40,11 @@ app:
         - "*.foo.bar"
 ingress:
   class: nginx
-  host: test.net
+  hosts:
+    - foo.bar
+    - bar.foo
 legacyIngress:
   class: nginx
-  host: example.org
+  hosts:
+    - foo.bar
+    - bar.foo
