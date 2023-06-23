@@ -3,12 +3,12 @@ use radix_trie::Trie;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{BTreeMap, HashMap},
+    fmt,
     ops::Deref,
     sync::Arc,
 };
 use svc_authn::{AccountId, Authenticable};
 
-use crate::db::{Bucket, Set};
 use crate::s3::Client;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -180,6 +180,64 @@ impl AudienceEstimator {
     fn bucket_label<'a>(bucket: &'a str, audience: &str) -> &'a str {
         let (val, _) = bucket.split_at(bucket.len() - (audience.len() + 1));
         val
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Bucket {
+    label: String,
+    audience: String,
+}
+
+impl Bucket {
+    pub fn new(label: &str, audience: &str) -> Self {
+        Self {
+            label: label.to_owned(),
+            audience: audience.to_owned(),
+        }
+    }
+
+    pub fn audience(&self) -> &str {
+        &self.audience
+    }
+}
+
+impl fmt::Display for Bucket {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{}.{}", self.label, self.audience)
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Set {
+    label: String,
+    bucket: Bucket,
+}
+
+impl Set {
+    pub fn new(label: &str, bucket: Bucket) -> Self {
+        Self {
+            label: label.to_owned(),
+            bucket,
+        }
+    }
+
+    pub fn label(&self) -> &str {
+        &self.label
+    }
+
+    pub fn bucket(&self) -> &Bucket {
+        &self.bucket
+    }
+}
+
+impl fmt::Display for Set {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{}:{}", self.bucket, self.label)
     }
 }
 

@@ -5,7 +5,6 @@ use axum::{
 };
 use http::{header::REFERER, StatusCode};
 use std::sync::Arc;
-
 use svc_authn::AccountId;
 use svc_utils::extractors::AccountIdExtractor;
 

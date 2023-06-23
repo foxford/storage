@@ -1,1 +1,0 @@
-drop type bucket cascade;

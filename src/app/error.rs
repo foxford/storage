@@ -1,8 +1,6 @@
 use axum::{response::IntoResponse, Json};
-use std::fmt;
-use std::sync::Arc;
-
 use http::StatusCode;
+use std::{fmt, sync::Arc};
 use svc_error::Error as SvcError;
 
 pub struct ErrorKindProperties {
