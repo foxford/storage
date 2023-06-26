@@ -1,1 +1,0 @@
-drop function tag_list(_type bucket, _in set[], _ex set[], _offset int8, _limit int8) cascade;

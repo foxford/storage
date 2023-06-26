@@ -22,17 +22,15 @@ Subject's namespace and account label are retrieved from `aud` and `sub` claims 
 
 Possible values for `SUBJECT`:
 
-subject       |
-------------- |
-ACCOUNT_LABEL |
-"anonymous"   |
+| subject       |
+|---------------|
+| ACCOUNT_LABEL |
+| "anonymous"   |
 
 Possible values for `OBJECT` and `ACTION`:
 
-object / action                        | read | update | delete | list
--------------------------------------- | ---- | ------ | ------ | ----
-["sets", SET]                          |    + |      + |      + | -
-["tags", TAG]                          |    + |      + |      + | -
-["tags"]                               |    - |      - |      - | +
+| object / action | read | update | delete | list |
+|-----------------|------|--------|--------|------|
+| ["sets", SET]   | +    | +      | +      | -    |
 
-Note that `SET` and `TAG` must contain the audience of the tenant the request will be sent to. For example, for the sets `data.example.org:foo` and `data.example.org:bar` requests will be sent to the `example.org` audience (the audience should be presented in the application configuration).
+Note that `SET` must contain the audience of the tenant the request will be sent to. For example, for the sets `data.example.org:foo` and `data.example.org:bar` requests will be sent to the `example.org` audience (the audience should be presented in the application configuration).

@@ -10,7 +10,6 @@ use http::{
 use serde::Deserialize;
 use serde_json::json;
 use std::{collections::BTreeMap, sync::Arc};
-
 use svc_authn::AccountId;
 use svc_utils::extractors::AccountIdExtractor;
 
