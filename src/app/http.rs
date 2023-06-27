@@ -28,7 +28,7 @@ pub fn build_router(context: Arc<AppContext>, authn: svc_authn::jose::ConfigMap)
             header::IF_NONE_MATCH,
             header::IF_UNMODIFIED_SINCE,
             header::RANGE,
-            header::HeaderName::from_static("x-request-type"),
+            HeaderName::from_static("x-request-type"),
             HeaderName::from_static("x-agent-label"),
         ])
         .max_age(std::time::Duration::from_secs(3600))
@@ -37,12 +37,10 @@ pub fn build_router(context: Arc<AppContext>, authn: svc_authn::jose::ConfigMap)
     let routes = Router::new().nest(
         "/api/v2",
         Router::new()
-            .route("/sets/:set/objects/:object", get(endpoints::read))
             .route(
                 "/backends/:back/sets/:set/objects/:object",
                 get(endpoints::backend_read),
             )
-            .route("/sign", post(endpoints::sign))
             .route("/backends/:back/sign", post(endpoints::backend_sign))
             .layer(cors)
             .layer(Extension(Arc::new(authn)))

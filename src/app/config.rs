@@ -5,7 +5,7 @@ use url::Url;
 #[derive(Clone, Debug, Deserialize)]
 pub struct AppConfig {
     pub id: svc_authn::AccountId,
-    pub backend: Option<crate::app::util::BackendConfig>,
+    pub backend: crate::app::util::BackendConfig,
     pub authn: svc_authn::jose::ConfigMap,
     pub authz: svc_authz::ConfigMap,
     pub http: HttpConfig,

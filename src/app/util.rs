@@ -1,35 +1,23 @@
-use anyhow::{anyhow, format_err, Result};
+use anyhow::{anyhow, Result};
 use radix_trie::Trie;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
-use std::ops::Deref;
+use std::{collections::BTreeMap, fmt, ops::Deref, sync::Arc};
 use svc_authn::{AccountId, Authenticable};
 
-use crate::db::{Bucket, Set};
 use crate::s3::Client;
 
 ////////////////////////////////////////////////////////////////////////////////
 
-pub const S3_DEFAULT_CLIENT: &str = "default";
-pub type S3Clients = BTreeMap<String, ::std::sync::Arc<crate::s3::Client>>;
+pub type S3Clients = BTreeMap<String, Arc<Client>>;
 
 ////////////////////////////////////////////////////////////////////////////////
 
 #[derive(Clone, Debug, Deserialize)]
-pub struct BackendConfig {
-    default: String,
-    alt: BTreeMap<String, AltBackendConfig>,
-}
+pub struct BackendConfig(BTreeMap<String, BackendConfigItem>);
 
 #[derive(Clone, Debug, Deserialize)]
-pub struct AltBackendConfig {
+pub struct BackendConfigItem {
     proxy_hosts: Option<Vec<ProxyHost>>,
-}
-
-impl AltBackendConfig {
-    fn new() -> Self {
-        AltBackendConfig { proxy_hosts: None }
-    }
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -40,35 +28,17 @@ pub struct ProxyHost {
 
 ////////////////////////////////////////////////////////////////////////////////
 
-pub fn read_s3_config(config: Option<&BackendConfig>) -> anyhow::Result<S3Clients> {
+pub fn read_s3_config(config: &BackendConfig) -> Result<S3Clients> {
     let mut acc = S3Clients::new();
 
-    if let Some(back) = config {
-        read_s3(
-            &String::from(S3_DEFAULT_CLIENT),
-            &format!("{}_", back.default.to_uppercase()),
-            back.alt
-                .get(&back.default)
-                .ok_or_else(|| format_err!("Missing default backend configuration"))?,
-            &mut acc,
-        );
-
-        for (back, config) in back.alt.iter() {
-            read_s3(back, &format!("{}_", back.to_uppercase()), config, &mut acc);
-        }
-    } else {
-        read_s3(
-            &String::from(S3_DEFAULT_CLIENT),
-            "",
-            &AltBackendConfig::new(),
-            &mut acc,
-        );
+    for (back, config) in config.0.iter() {
+        read_s3(back, &format!("{}_", back.to_uppercase()), config, &mut acc);
     }
 
     Ok(acc)
 }
 
-fn read_s3(back: &str, prefix: &str, alt: &AltBackendConfig, acc: &mut S3Clients) {
+fn read_s3(back: &str, prefix: &str, item: &BackendConfigItem, acc: &mut S3Clients) {
     use std::env::var;
     let key = var(format!("{}AWS_ACCESS_KEY_ID", prefix))
         .unwrap_or_else(|_| panic!("{}AWS_ACCESS_KEY_ID must be specified", prefix));
@@ -79,7 +49,7 @@ fn read_s3(back: &str, prefix: &str, alt: &AltBackendConfig, acc: &mut S3Clients
     let region = var(format!("{}AWS_REGION", prefix))
         .unwrap_or_else(|_| panic!("{}AWS_REGION must be specified", prefix));
 
-    let mut client = crate::s3::Client::new(
+    let mut client = Client::new(
         &key,
         &secret,
         &region,
@@ -87,11 +57,11 @@ fn read_s3(back: &str, prefix: &str, alt: &AltBackendConfig, acc: &mut S3Clients
         ::std::time::Duration::from_secs(300),
     );
 
-    if let Some(ref proxy_hosts) = alt.proxy_hosts {
+    if let Some(ref proxy_hosts) = item.proxy_hosts {
         client.set_proxy_hosts(proxy_hosts);
     }
 
-    acc.insert(back.to_owned(), ::std::sync::Arc::new(client));
+    acc.insert(back.to_owned(), Arc::new(client));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -205,6 +175,64 @@ impl AudienceEstimator {
     fn bucket_label<'a>(bucket: &'a str, audience: &str) -> &'a str {
         let (val, _) = bucket.split_at(bucket.len() - (audience.len() + 1));
         val
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Bucket {
+    label: String,
+    audience: String,
+}
+
+impl Bucket {
+    pub fn new(label: &str, audience: &str) -> Self {
+        Self {
+            label: label.to_owned(),
+            audience: audience.to_owned(),
+        }
+    }
+
+    pub fn audience(&self) -> &str {
+        &self.audience
+    }
+}
+
+impl fmt::Display for Bucket {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{}.{}", self.label, self.audience)
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Set {
+    label: String,
+    bucket: Bucket,
+}
+
+impl Set {
+    pub fn new(label: &str, bucket: Bucket) -> Self {
+        Self {
+            label: label.to_owned(),
+            bucket,
+        }
+    }
+
+    pub fn label(&self) -> &str {
+        &self.label
+    }
+
+    pub fn bucket(&self) -> &Bucket {
+        &self.bucket
+    }
+}
+
+impl fmt::Display for Set {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        write!(fmt, "{}:{}", self.bucket, self.label)
     }
 }
 

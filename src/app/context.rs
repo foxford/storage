@@ -64,7 +64,7 @@ impl AppContext {
             });
 
         // Resources
-        let s3_clients = read_s3_config(config.backend.as_ref()).expect("Error reading s3 config");
+        let s3_clients = read_s3_config(&config.backend).expect("Error reading s3 config");
 
         let s3 = S3ClientRef::new(s3_clients);
 

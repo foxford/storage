@@ -10,7 +10,6 @@ use http::{
 use serde::Deserialize;
 use serde_json::json;
 use std::{collections::BTreeMap, sync::Arc};
-
 use svc_authn::AccountId;
 use svc_utils::extractors::AccountIdExtractor;
 
@@ -23,16 +22,6 @@ pub struct SignPayload {
     object: String,
     method: String,
     headers: BTreeMap<String, String>,
-}
-
-pub async fn sign(
-    State(ctx): State<Arc<AppContext>>,
-    AccountIdExtractor(sub): AccountIdExtractor,
-    headers: HeaderMap,
-    Json(payload): Json<SignPayload>,
-) -> Response<String> {
-    let back = String::from(crate::app::util::S3_DEFAULT_CLIENT);
-    sign_ns(ctx, back, payload, sub, headers.get(REFERER)).await
 }
 
 pub async fn backend_sign(

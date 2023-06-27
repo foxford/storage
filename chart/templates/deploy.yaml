@@ -64,29 +64,7 @@ spec:
                   name: redis-storage-credentials
                   key: CACHE_URL
             {{- end }}
-            {{- if hasKey .Values.app.s3 "default" }}
-            - name: AWS_ACCESS_KEY_ID
-              valueFrom:
-                secretKeyRef:
-                  name: {{ (get .Values.app.s3.alt .Values.app.s3.default).secret }}
-                  key: key
-            - name: AWS_SECRET_ACCESS_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: {{ (get .Values.app.s3.alt .Values.app.s3.default).secret }}
-                  key: secret
-            - name: AWS_ENDPOINT
-              valueFrom:
-                secretKeyRef:
-                  name: {{ (get .Values.app.s3.alt .Values.app.s3.default).secret }}
-                  key: endpoint
-            - name: AWS_REGION
-              valueFrom:
-                secretKeyRef:
-                  name: {{ (get .Values.app.s3.alt .Values.app.s3.default).secret }}
-                  key: region
-            {{- end }}
-            {{- range $key, $value := .Values.app.s3.alt }}
+            {{- range $key, $value := .Values.app.s3 }}
             - name: {{ list $key "AWS_ACCESS_KEY_ID" | compact | join "_" | upper }}
               valueFrom:
                 secretKeyRef:
