@@ -1,15 +1,16 @@
 use crate::app::{config::AppConfig, http};
-use tracing::warn;
+use ::tracing::warn;
 
 mod app;
 mod s3;
 mod serde;
+mod tracing;
 
 const APP_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 #[tokio::main]
-async fn main() {
-    env_logger::init();
+async fn main() -> anyhow::Result<()> {
+    let _guard = tracing::init()?;
 
     warn!(version = %APP_VERSION, "Launching storage");
 
@@ -17,4 +18,6 @@ async fn main() {
     warn!("config = {:?}", config);
 
     http::run(config).await;
+
+    Ok(())
 }
