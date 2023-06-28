@@ -23,7 +23,7 @@ app:
       memory: 100Mi
 
 env:
-  RUST_LOG: info
+  RUST_LOG: warn,storage=info,svc_utils=info,svc_utils::metrics=warn
   CACHE_ENABLED: 0
   CACHE_POOL_SIZE: 50
   CACHE_POOL_IDLE_SIZE: 5

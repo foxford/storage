@@ -13,10 +13,6 @@ data:
     [http]
     listener_address = "0.0.0.0:8080"
 
-    [http.cors]
-    allow_origins = "*"
-    max_age = 86400
-
     ##
     ## S3-compatible underlying backends
     ##
