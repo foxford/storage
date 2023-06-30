@@ -24,7 +24,7 @@ spec:
           imagePullPolicy: IfNotPresent
           name: network-tester
         {{- if .Values.maxmind }}
-        - image: amazon/aws-cli:2.11
+        - image: amazon/aws-cli:2.12.6
           imagePullPolicy: IfNotPresent
           name: maxminddb-download
           command: ["/bin/sh"]
