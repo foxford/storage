@@ -26,16 +26,17 @@ spec:
         {{- if .Values.maxmind }}
         - image: amazon/aws-cli:2.12.6
           imagePullPolicy: IfNotPresent
-          name: maxminddb-download
-          command: ["/bin/sh"]
+          name: maxmind-db-downloader
+          command: ["/bin/sh", "-xec"]
+          # https://github.com/aws/aws-cli/issues/5106
           args:
-            - -c
-            - aws s3 cp --endpoint="${AWS_ENDPOINT}" --only-show-errors {{ .Values.maxmind.path }} maxmind.tar.gz;
-            - tar -xf ./maxmind.tar.gz;
-            - cp `find . -type f -name "*.mmdb"` /maxmind/maxmind.mmdb;
+            - aws s3 cp --endpoint=${AWS_ENDPOINT} --only-show-errors {{ .Values.maxmind.path }} maxmind.tar.gz;
+              yum install -y tar gzip;
+              tar -xf ./maxmind.tar.gz;
+              cp `find . -type f -name "*.mmdb"` /maxmind/maxmind.mmdb;
           volumeMounts:
           - name: maxmind
-            mountPath: "/maxmind"
+            mountPath: /maxmind
           env:
             {{- range $key, $value := .Values.app.s3 }}
             - name: AWS_ACCESS_KEY_ID
