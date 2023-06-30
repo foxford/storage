@@ -28,11 +28,11 @@ spec:
           imagePullPolicy: IfNotPresent
           name: maxminddb-download
           command: ["/bin/sh"]
-          args: >
-            -c
-            aws s3 cp --endpoint="${AWS_ENDPOINT}" --only-show-errors {{ .Values.maxmind.path }} maxmind.tar.gz;
-            tar -xf ./maxmind.tar.gz;
-            cp `find . -type f -name "*.mmdb"` /maxmind/maxmind.mmdb;
+          args:
+            - -c
+            - aws s3 cp --endpoint="${AWS_ENDPOINT}" --only-show-errors {{ .Values.maxmind.path }} maxmind.tar.gz;
+            - tar -xf ./maxmind.tar.gz;
+            - cp `find . -type f -name "*.mmdb"` /maxmind/maxmind.mmdb;
           volumeMounts:
           - name: maxmind
             mountPath: "/maxmind"
