@@ -74,7 +74,7 @@ impl Client {
     }
 
     fn get_proxy_hosts(&self, country: Option<String>) -> Option<&Vec<String>> {
-        country.and_then(|c| self.proxy_hosts.as_ref()?.get(&c))
+        country.and_then(|c| self.proxy_hosts.as_ref()?.get(&c.to_lowercase()))
     }
 
     pub fn sign_request(&self, req: &mut SignedRequest, country: Option<String>) -> Result<String> {
@@ -82,10 +82,11 @@ impl Client {
 
         if let Some(proxy_hosts) = self.get_proxy_hosts(country) {
             let mut parsed_url = Url::parse(&url).context("failed to parse generated uri")?;
-
             let idx = self.counter.fetch_add(1, Ordering::Acquire) % proxy_hosts.len();
+            let proxy_host = proxy_hosts.get(idx).map(|h| h.as_str());
+
             parsed_url
-                .set_host(proxy_hosts.get(idx).map(|h| h.as_str()))
+                .set_host(proxy_host)
                 .context("failed to set proxy backend")?;
 
             Ok(parsed_url.to_string())

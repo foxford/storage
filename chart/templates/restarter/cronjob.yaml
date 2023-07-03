@@ -7,6 +7,8 @@ metadata:
     {{- include "storage.labels" . | nindent 4 }}
 spec:
   schedule: {{ .Values.maxmind.updateSchedule | quote }}
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
   jobTemplate:
     spec:
       template:

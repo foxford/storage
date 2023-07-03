@@ -7,7 +7,7 @@ use axum::{
 use axum_client_ip::InsecureClientIp;
 use maxminddb::{geoip2::Country, Reader};
 use std::sync::Arc;
-use tracing::{field, warn, Span};
+use tracing::{error, field, Span};
 
 /// Extracts iso code of country from ip address.
 pub struct CountryExtractor(pub Option<String>);
@@ -18,6 +18,7 @@ impl<S: Send + Sync> FromRequestParts<S> for CountryExtractor {
 
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
         use axum::RequestPartsExt;
+
         let Extension(maxmind) = parts
             .extract::<Extension<Arc<Reader<Vec<u8>>>>>()
             .await
@@ -25,7 +26,7 @@ impl<S: Send + Sync> FromRequestParts<S> for CountryExtractor {
             .ok_or(Error::new(ErrorKind::MissingMaxmind, None))?;
 
         let Ok(InsecureClientIp(ip_address)) = InsecureClientIp::from_request_parts(parts, state).await else {
-            warn!("error retrieve ip address");
+            error!("error retrieve ip address");
             return Ok(Self(None));
         };
 
@@ -37,7 +38,7 @@ impl<S: Send + Sync> FromRequestParts<S> for CountryExtractor {
                 .and_then(|c| c.iso_code)
                 .map(|c| c.to_string()),
             Err(err) => {
-                warn!("maxminddb error: {}", err);
+                error!("maxmind db error: {}", err);
                 None
             }
         };
