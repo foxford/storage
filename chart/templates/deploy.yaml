@@ -19,10 +19,6 @@ spec:
     spec:
       imagePullSecrets:
         - name: regcred
-      initContainers:
-        - image: "{{ .Values.networkTester.image.repository }}:{{ .Values.networkTester.image.tag }}"
-          imagePullPolicy: IfNotPresent
-          name: network-tester
       containers:
         - name: storage
           image: "{{ .Values.app.image.repository }}:{{ .Values.app.image.tag }}"
