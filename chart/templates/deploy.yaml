@@ -38,28 +38,26 @@ spec:
           - name: maxmind
             mountPath: /maxmind
           env:
-            {{- range $key, $value := .Values.app.s3 }}
             - name: AWS_ACCESS_KEY_ID
               valueFrom:
                 secretKeyRef:
-                  name: {{ $value.secret }}
+                  name: {{ .Values.maxmind.s3SecretName }}
                   key: key
             - name: AWS_SECRET_ACCESS_KEY
               valueFrom:
                 secretKeyRef:
-                  name: {{ $value.secret }}
+                  name: {{ .Values.maxmind.s3SecretName }}
                   key: secret
             - name: AWS_ENDPOINT
               valueFrom:
                 secretKeyRef:
-                  name: {{ $value.secret }}
+                  name: {{ .Values.maxmind.s3SecretName }}
                   key: endpoint
             - name: AWS_REGION
               valueFrom:
                 secretKeyRef:
-                  name: {{ $value.secret }}
+                  name: {{ .Values.maxmind.s3SecretName }}
                   key: region 
-            {{- end }}
         {{- end }}
       containers:
         - name: storage
