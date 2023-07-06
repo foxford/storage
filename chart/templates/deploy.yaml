@@ -20,9 +20,6 @@ spec:
       imagePullSecrets:
         - name: regcred
       initContainers:
-        - image: "{{ .Values.networkTester.image.repository }}:{{ .Values.networkTester.image.tag }}"
-          imagePullPolicy: IfNotPresent
-          name: network-tester
         {{- if .Values.maxmind }}
         - image: amazon/aws-cli:2.12.6
           imagePullPolicy: IfNotPresent
@@ -30,7 +27,7 @@ spec:
           command: ["/bin/sh", "-xec"]
           # https://github.com/aws/aws-cli/issues/5106
           args:
-            - aws s3 cp --endpoint=${AWS_ENDPOINT} --only-show-errors {{ .Values.maxmind.path }} maxmind.tar.gz;
+            - aws s3 cp --endpoint=${AWS_ENDPOINT} --only-show-errors {{ .Values.maxmind.s3.path }} maxmind.tar.gz;
               yum install -y tar gzip;
               tar -xf ./maxmind.tar.gz;
               cp `find . -type f -name "*.mmdb"` /maxmind/maxmind.mmdb;
@@ -41,22 +38,22 @@ spec:
             - name: AWS_ACCESS_KEY_ID
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.maxmind.s3SecretName }}
+                  name: {{ .Values.maxmind.s3.secretName }}
                   key: key
             - name: AWS_SECRET_ACCESS_KEY
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.maxmind.s3SecretName }}
+                  name: {{ .Values.maxmind.s3.secretName }}
                   key: secret
             - name: AWS_ENDPOINT
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.maxmind.s3SecretName }}
+                  name: {{ .Values.maxmind.s3.secretName }}
                   key: endpoint
             - name: AWS_REGION
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.maxmind.s3SecretName }}
+                  name: {{ .Values.maxmind.s3.secretName }}
                   key: region 
         {{- end }}
       containers:
