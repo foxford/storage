@@ -1,0 +1,25 @@
+{{- if and .Values.maxmind .Values.maxmind.updateSchedule }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "storage.fullname" . }}-restarter
+  labels:
+    {{- include "storage.labels" . | nindent 4 }}
+spec:
+  schedule: {{ .Values.maxmind.updateSchedule | quote }}
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          serviceAccountName: {{ include "storage.fullname" . }}-restarter
+          restartPolicy: OnFailure
+          containers:
+            - name: kubectl
+              image: bitnami/kubectl
+              command:
+                - /bin/sh
+                - -c
+                - "kubectl rollout restart deployment/{{ include "storage.fullname" . }}"
+{{- end }}

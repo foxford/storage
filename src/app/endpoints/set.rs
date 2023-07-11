@@ -1,39 +1,44 @@
 use axum::{
     extract::{Path, State},
     http::header::{HeaderMap, HeaderValue},
+    response::{IntoResponse, Response},
 };
-use http::{header::REFERER, Response, StatusCode};
+use http::{header::REFERER, StatusCode};
 use std::sync::Arc;
 use svc_authn::AccountId;
 use svc_utils::extractors::AccountIdExtractor;
 
 use super::{s3_object, valid_referer, wrap_error};
-use crate::app::{authz::AuthzObject, context::AppContext};
+use crate::app::{
+    authz::AuthzObject, context::AppContext, error::ErrorKind, maxmind::CountryExtractor,
+};
 
 pub async fn backend_read(
     State(ctx): State<Arc<AppContext>>,
     AccountIdExtractor(sub): AccountIdExtractor,
+    CountryExtractor(country): CountryExtractor,
     Path((back, set, object)): Path<(String, String, String)>,
     headers: HeaderMap,
-) -> Response<String> {
-    read_ns(ctx, back, set, object, sub, headers.get(REFERER)).await
+) -> Response {
+    read_ns(ctx, country, back, set, object, sub, headers.get(REFERER)).await
 }
 
 async fn read_ns(
     ctx: Arc<AppContext>,
+    country: Option<String>,
     back: String,
     set: String,
     object: String,
     sub: AccountId,
     referer: Option<&HeaderValue>,
-) -> Response<String> {
+) -> Response {
     let zobj = AuthzObject::new(&["sets", &set]);
     let zact = "read";
     let s3 = match ctx.s3.get(&back) {
         Some(val) => val.clone(),
         None => {
             return wrap_error(
-                StatusCode::NOT_FOUND,
+                ErrorKind::BackendNotFound,
                 format!(
                     "Error reading an object by set: Backend '{}' is not found",
                     &back
@@ -59,17 +64,17 @@ async fn read_ns(
                 .await
             {
                 Err(err) => wrap_error(
-                    StatusCode::FORBIDDEN,
+                    ErrorKind::ObjectReadingError,
                     format!("Error reading an object by set: {}", err),
                 ),
                 Ok(_) => {
                     let bucket = set_s.bucket().to_string();
                     let object = s3_object(set_s.label(), &object);
 
-                    match s3.presigned_url("GET", &bucket, &object) {
+                    match s3.presigned_url(country, "GET", &bucket, &object) {
                         Ok(uri) => redirect(uri),
                         Err(err) => wrap_error(
-                            StatusCode::UNPROCESSABLE_ENTITY,
+                            ErrorKind::ObjectReadingError,
                             format!("Error reading an object by set: {}", err),
                         ),
                     }
@@ -77,17 +82,16 @@ async fn read_ns(
             }
         }
         Err(err) => wrap_error(
-            StatusCode::INTERNAL_SERVER_ERROR,
+            ErrorKind::ObjectReadingError,
             format!("Error reading an object by set: {}", err),
         ),
     }
 }
 
-fn redirect(uri: String) -> Response<String> {
-    Response::builder()
-        .header("location", uri)
-        .header("Timing-Allow-Origin", "*")
-        .status(StatusCode::SEE_OTHER)
-        .body(String::default())
-        .unwrap()
+fn redirect(uri: String) -> Response {
+    (
+        StatusCode::SEE_OTHER,
+        [("location", uri), ("Timing-Allow-Origin", "*".to_string())],
+    )
+        .into_response()
 }

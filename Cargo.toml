@@ -1,14 +1,16 @@
 [package]
 name = "storage"
-version = "0.8.1"
+version = "0.9.0"
 authors = ["Andrei Nesterov <ae.nesterov@gmail.com>"]
 edition = "2018"
 
 [dependencies]
 anyhow = "1.0"
 axum = { version = "0.6", features = ["headers"] }
+axum-client-ip = "0.4"
 config = "0.13"
 http = "0.2"
+maxminddb = "0.23"
 radix_trie = "0.2"
 rusoto_core = "0.48"
 rusoto_s3 = "0.48"
@@ -17,9 +19,9 @@ serde_json = "1.0"
 svc-agent = { version = "0.20" }
 svc-authn = { version = "0.8", features = ["jose"] }
 svc-authz = "0.12"
-svc-error = { version = "0.5" }
+svc-error = { version = "0.5", features = ["svc-authn", "svc-authz"] }
 svc-utils = { version = "0.7.4", features = ["authn-extractor", "log-middleware"] }
-tokio = { version = "1.28" }
+tokio = "1.28"
 tower-http = { version = "0.4", features = ["trace", "cors"] }
 tracing = "0.1"
 tracing-appender = "0.2"

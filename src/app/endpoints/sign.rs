@@ -2,10 +2,11 @@ use anyhow::anyhow;
 use axum::{
     extract::{Json, Path, State},
     http::header::{HeaderMap, HeaderValue},
+    response::{IntoResponse, Response},
 };
 use http::{
     header::{CONTENT_TYPE, REFERER},
-    Response, StatusCode,
+    StatusCode,
 };
 use serde::Deserialize;
 use serde_json::json;
@@ -14,7 +15,10 @@ use svc_authn::AccountId;
 use svc_utils::extractors::AccountIdExtractor;
 
 use super::{s3_object, valid_referer, wrap_error};
-use crate::app::{authz::AuthzObject, context::AppContext, util::S3SignedRequestBuilder};
+use crate::app::{
+    authz::AuthzObject, context::AppContext, error::ErrorKind, maxmind::CountryExtractor,
+    util::S3SignedRequestBuilder,
+};
 
 #[derive(Debug, Deserialize)]
 pub struct SignPayload {
@@ -27,20 +31,22 @@ pub struct SignPayload {
 pub async fn backend_sign(
     State(ctx): State<Arc<AppContext>>,
     AccountIdExtractor(sub): AccountIdExtractor,
+    CountryExtractor(country): CountryExtractor,
     Path(back): Path<String>,
     headers: HeaderMap,
     Json(payload): Json<SignPayload>,
-) -> Response<String> {
-    sign_ns(ctx, back, payload, sub, headers.get(REFERER)).await
+) -> Response {
+    sign_ns(ctx, country, back, payload, sub, headers.get(REFERER)).await
 }
 
 async fn sign_ns(
     ctx: Arc<AppContext>,
+    country: Option<String>,
     back: String,
     body: SignPayload,
     sub: AccountId,
     referer: Option<&HeaderValue>,
-) -> Response<String> {
+) -> Response {
     if let Ok(set_s) = ctx.aud_estm.parse_set(&body.set) {
         if let Err(err) = valid_referer(&ctx, &set_s.bucket().to_string(), referer) {
             return err;
@@ -52,7 +58,7 @@ async fn sign_ns(
         Ok(val) => val,
         Err(err) => {
             return wrap_error(
-                StatusCode::FORBIDDEN,
+                ErrorKind::SigningForbidden,
                 format!("Error signing a request: {}", err),
             )
         }
@@ -62,7 +68,7 @@ async fn sign_ns(
         Some(val) => val.clone(),
         None => {
             return wrap_error(
-                StatusCode::NOT_FOUND,
+                ErrorKind::BackendNotFound,
                 format!("Error signing a request: Backend '{}' is not found", &back),
             )
         }
@@ -81,7 +87,7 @@ async fn sign_ns(
                 .await
             {
                 Err(err) => wrap_error(
-                    StatusCode::FORBIDDEN,
+                    ErrorKind::SigningError,
                     format!("Error signing a request: {}", err),
                 ),
                 Ok(_) => {
@@ -93,19 +99,18 @@ async fn sign_ns(
                     for (key, val) in body.headers {
                         builder = builder.add_header(&key, &val);
                     }
-                    match builder.build(&s3) {
-                        Ok(uri) => Response::builder()
-                            .status(StatusCode::OK)
-                            .header(CONTENT_TYPE, "application/json")
-                            .body(
-                                json!({
-                                    "uri": uri,
-                                })
-                                .to_string(),
-                            )
-                            .unwrap(),
+                    match builder.build(&s3, country) {
+                        Ok(uri) => (
+                            StatusCode::OK,
+                            [(CONTENT_TYPE, "application/json")],
+                            json!({
+                                "uri": uri,
+                            })
+                            .to_string(),
+                        )
+                            .into_response(),
                         Err(err) => wrap_error(
-                            StatusCode::INTERNAL_SERVER_ERROR,
+                            ErrorKind::SigningError,
                             format!("Error signing a request: {}", err),
                         ),
                     }
@@ -113,7 +118,7 @@ async fn sign_ns(
             }
         }
         Err(err) => wrap_error(
-            StatusCode::INTERNAL_SERVER_ERROR,
+            ErrorKind::SigningError,
             format!("Error signing a request: {}", err),
         ),
     }

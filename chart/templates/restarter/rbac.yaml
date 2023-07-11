@@ -1,0 +1,35 @@
+{{- if and .Values.maxmind .Values.maxmind.updateSchedule }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "storage.fullname" . }}-restarter
+  labels:
+      {{- include "storage.labels" . | nindent 4 }}
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: {{ include "storage.fullname" . }}-restarter
+  labels:
+      {{- include "storage.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    resourceNames: ["{{ include "storage.fullname" . }}"]
+    verbs: ["get", "patch"]
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: {{ include "storage.fullname" . }}-restarter
+  labels:
+      {{- include "storage.labels" . | nindent 4 }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "storage.fullname" . }}-restarter
+roleRef:
+  kind: Role
+  name: {{ include "storage.fullname" . }}-restarter
+  apiGroup: rbac.authorization.k8s.io
+{{- end }}

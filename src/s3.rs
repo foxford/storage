@@ -1,10 +1,11 @@
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::time::Duration;
+use std::{
+    collections::{BTreeMap, HashMap},
+    sync::atomic::{AtomicUsize, Ordering},
+    time::Duration,
+};
 
 use anyhow::{Context, Result};
-use rusoto_core::credential::AwsCredentials;
-use rusoto_core::signature::SignedRequest;
-use rusoto_core::Region;
+use rusoto_core::{credential::AwsCredentials, signature::SignedRequest, Region};
 use url::Url;
 
 use crate::app::util::ProxyHost;
@@ -14,7 +15,7 @@ pub struct Client {
     credentials: AwsCredentials,
     region: Region,
     expires_in: Duration,
-    proxy_hosts: Option<Vec<String>>,
+    proxy_hosts: Option<BTreeMap<String, Vec<String>>>,
     counter: AtomicUsize,
 }
 
@@ -41,23 +42,29 @@ impl Client {
         }
     }
 
-    pub fn set_proxy_hosts(&mut self, hosts: &[ProxyHost]) -> &mut Self {
-        let mut resulting_hosts = Vec::new();
+    pub fn set_proxy_hosts(&mut self, hosts: &HashMap<String, ProxyHost>) -> &mut Self {
+        let mut proxy_hosts: BTreeMap<String, Vec<String>> = BTreeMap::new();
 
-        for host in hosts {
+        for (country, host) in hosts {
+            let country_code = country.as_str().to_lowercase();
             match host.alias_range_upper_bound {
                 Some(upper_bound) => {
                     for alias_index in 1..=upper_bound {
-                        resulting_hosts.push(format!("{}.{}", alias_index, host.base));
+                        let host_uri = format!("{}.{}", alias_index, host.base);
+
+                        proxy_hosts
+                            .entry(country_code.clone())
+                            .and_modify(|h| h.push(host_uri.clone()))
+                            .or_insert(vec![host_uri]);
                     }
                 }
                 None => {
-                    resulting_hosts.push(host.base.to_owned());
+                    proxy_hosts.insert(country_code.clone(), vec![host.base.to_owned()]);
                 }
             }
         }
 
-        self.proxy_hosts = Some(resulting_hosts);
+        self.proxy_hosts = Some(proxy_hosts);
         self
     }
 
@@ -66,15 +73,20 @@ impl Client {
         SignedRequest::new(method, "s3", &self.region, &uri)
     }
 
-    pub fn sign_request(&self, req: &mut SignedRequest) -> Result<String> {
+    fn get_proxy_hosts(&self, country: Option<String>) -> Option<&Vec<String>> {
+        country.and_then(|c| self.proxy_hosts.as_ref()?.get(&c.to_lowercase()))
+    }
+
+    pub fn sign_request(&self, req: &mut SignedRequest, country: Option<String>) -> Result<String> {
         let url = req.generate_presigned_url(&self.credentials, &self.expires_in, false);
 
-        if let Some(ref proxy_hosts) = self.proxy_hosts {
+        if let Some(proxy_hosts) = self.get_proxy_hosts(country) {
             let mut parsed_url = Url::parse(&url).context("failed to parse generated uri")?;
-
             let idx = self.counter.fetch_add(1, Ordering::Acquire) % proxy_hosts.len();
+            let proxy_host = proxy_hosts.get(idx).map(|h| h.as_str());
+
             parsed_url
-                .set_host(proxy_hosts.get(idx).map(|h| h.as_str()))
+                .set_host(proxy_host)
                 .context("failed to set proxy backend")?;
 
             Ok(parsed_url.to_string())
@@ -83,7 +95,57 @@ impl Client {
         }
     }
 
-    pub fn presigned_url(&self, method: &str, bucket: &str, object: &str) -> Result<String> {
-        self.sign_request(&mut self.create_request(method, bucket, object))
+    pub fn presigned_url(
+        &self,
+        country: Option<String>,
+        method: &str,
+        bucket: &str,
+        object: &str,
+    ) -> Result<String> {
+        self.sign_request(&mut self.create_request(method, bucket, object), country)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{app::util::ProxyHost, s3::Client};
+    use std::collections::{BTreeMap, HashMap};
+
+    #[test]
+    fn set_proxy_hosts_test() {
+        let mut client = Client::new(
+            "key",
+            "secret",
+            "region",
+            "endpoint",
+            ::std::time::Duration::from_secs(300),
+        );
+
+        let mut hosts = HashMap::new();
+        let ua_host = ProxyHost {
+            base: "ua.example.org".to_string(),
+            alias_range_upper_bound: Some(2),
+        };
+        hosts.insert("ua".to_string(), ua_host);
+
+        let es_host = ProxyHost {
+            base: "es.example.org".to_string(),
+            alias_range_upper_bound: None,
+        };
+        hosts.insert("es".to_string(), es_host);
+
+        let result = client.set_proxy_hosts(&hosts);
+
+        let mut expected = BTreeMap::new();
+        expected.insert(
+            "ua".to_string(),
+            vec![
+                "1.ua.example.org".to_string(),
+                "2.ua.example.org".to_string(),
+            ],
+        );
+        expected.insert("es".to_string(), vec!["es.example.org".to_string()]);
+
+        assert_eq!(result.proxy_hosts, Some(expected));
     }
 }
