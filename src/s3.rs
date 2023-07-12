@@ -42,29 +42,28 @@ impl Client {
         }
     }
 
-    pub fn set_proxy_hosts(&mut self, hosts: &HashMap<String, ProxyHost>) -> &mut Self {
-        let mut proxy_hosts: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    pub fn set_proxy_hosts(&mut self, proxy_hosts: &HashMap<String, Vec<ProxyHost>>) -> &mut Self {
+        let mut resulting_hosts: BTreeMap<String, Vec<String>> = BTreeMap::new();
 
-        for (country, host) in hosts {
-            let country_code = country.as_str().to_lowercase();
-            match host.alias_range_upper_bound {
-                Some(upper_bound) => {
-                    for alias_index in 1..=upper_bound {
-                        let host_uri = format!("{}.{}", alias_index, host.base);
+        for (country, hosts) in proxy_hosts {
+            for host in hosts {
+                let mut _hosts = host
+                    .alias_range_upper_bound
+                    .map(|upper_bound| {
+                        (1..=upper_bound)
+                            .map(|idx| format!("{idx}.{}", host.base))
+                            .collect::<Vec<_>>()
+                    })
+                    .unwrap_or(vec![host.base.to_owned()]);
 
-                        proxy_hosts
-                            .entry(country_code.clone())
-                            .and_modify(|h| h.push(host_uri.clone()))
-                            .or_insert(vec![host_uri]);
-                    }
-                }
-                None => {
-                    proxy_hosts.insert(country_code.clone(), vec![host.base.to_owned()]);
-                }
+                resulting_hosts
+                    .entry(country.as_str().to_lowercase())
+                    .and_modify(|h| h.append(_hosts.as_mut()))
+                    .or_insert(_hosts);
             }
         }
 
-        self.proxy_hosts = Some(proxy_hosts);
+        self.proxy_hosts = Some(resulting_hosts);
         self
     }
 
@@ -122,17 +121,23 @@ mod tests {
         );
 
         let mut hosts = HashMap::new();
-        let ua_host = ProxyHost {
-            base: "ua.example.org".to_string(),
-            alias_range_upper_bound: Some(2),
-        };
-        hosts.insert("ua".to_string(), ua_host);
+        let ua_hosts = vec![
+            ProxyHost {
+                base: "ua1.example.org".to_string(),
+                alias_range_upper_bound: None,
+            },
+            ProxyHost {
+                base: "ua2.example.org".to_string(),
+                alias_range_upper_bound: Some(2),
+            },
+        ];
+        hosts.insert("ua".to_string(), ua_hosts);
 
         let es_host = ProxyHost {
             base: "es.example.org".to_string(),
             alias_range_upper_bound: None,
         };
-        hosts.insert("es".to_string(), es_host);
+        hosts.insert("es".to_string(), vec![es_host]);
 
         let result = client.set_proxy_hosts(&hosts);
 
@@ -140,8 +145,9 @@ mod tests {
         expected.insert(
             "ua".to_string(),
             vec![
-                "1.ua.example.org".to_string(),
-                "2.ua.example.org".to_string(),
+                "ua1.example.org".to_string(),
+                "1.ua2.example.org".to_string(),
+                "2.ua2.example.org".to_string(),
             ],
         );
         expected.insert("es".to_string(), vec!["es.example.org".to_string()]);

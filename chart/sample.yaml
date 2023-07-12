@@ -6,8 +6,9 @@ app:
       secret: yandex-storage-credentials
       proxyHosts:
         ru:
-          base: router.example.org
-          aliasRangeUpperBound: 2
+          - base: router1.example.org
+            aliasRangeUpperBound: 2
+          - base: router2.example.org
   svc:
     audience: svc.test.net
     credentials:
