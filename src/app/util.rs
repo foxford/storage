@@ -22,7 +22,7 @@ pub struct BackendConfig(BTreeMap<String, BackendConfigItem>);
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct BackendConfigItem {
-    proxy_hosts: Option<HashMap<String, ProxyHost>>,
+    proxy_hosts: Option<HashMap<String, Vec<ProxyHost>>>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -295,13 +295,13 @@ mod tests {
             base: "ua.example.org".to_string(),
             alias_range_upper_bound: Some(2),
         };
-        hosts.insert("ua".to_string(), ua_host);
+        hosts.insert("ua".to_string(), vec![ua_host]);
 
         let es_host = ProxyHost {
             base: "es.example.org".to_string(),
             alias_range_upper_bound: None,
         };
-        hosts.insert("es".to_string(), es_host);
+        hosts.insert("es".to_string(), vec![es_host]);
 
         let item_with_proxy = BackendConfigItem {
             proxy_hosts: Some(hosts),

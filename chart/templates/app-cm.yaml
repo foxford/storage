@@ -20,11 +20,13 @@ data:
     {{- range $backend, $value := .Values.app.s3 }}
     [backend.{{ $backend }}]
     {{- if $value.proxyHosts }}
-    {{- range $country, $host := $value.proxyHosts }}
-    [backend.{{ $backend }}.proxy_hosts.{{ $country }}]
+    {{- range $country, $hosts := $value.proxyHosts }}
+    {{- range $host := $hosts }}
+    [[backend.{{ $backend }}.proxy_hosts.{{ $country }}]]
     base = {{ $host.base | quote }}
     {{- if $host.aliasRangeUpperBound }}
     alias_range_upper_bound = {{ $host.aliasRangeUpperBound }}
+    {{- end }}
     {{- end }}
     {{- end }}
     {{- end }}
