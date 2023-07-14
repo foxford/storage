@@ -13,10 +13,10 @@ app:
 
   resources:
     requests:
-      cpu: 0.01
-      memory: 50Mi
-    limits:
+      cpu: 0.02
       memory: 100Mi
+    limits:
+      memory: 200Mi
   s3: {}
 
 env:
