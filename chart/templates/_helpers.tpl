@@ -113,3 +113,16 @@ Create volumeMount name from audience and secret name
 {{- $secret := index . 1 -}}
 {{- printf "%s-%s-secret" $audience $secret | replace "." "-" | trunc 63 | trimSuffix "-" }}
 {{- end }}
+
+{{/*
+Generate path to file in S3 `apps-data` bucket
+*/}}
+{{- define "storage.maxmindS3Path" -}}
+{{- $namespace := index . 0 -}}
+{{- $namespaceEnv := regexSplit "-" $namespace -1 | first -}}
+{{- $env := "dev"}}
+{{- if eq $namespaceEnv "p" }}
+{{- $env = "prod"}}
+{{- end }}
+{{- list "s3://apps-data" $env "maxmind" "GeoIP2-Country.tar.gz" | compact | join "/" }}
+{{- end }}

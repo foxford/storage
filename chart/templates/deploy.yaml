@@ -27,7 +27,7 @@ spec:
           command: ["/bin/sh", "-xec"]
           # https://github.com/aws/aws-cli/issues/5106
           args:
-            - aws s3 cp --endpoint=${AWS_ENDPOINT} --only-show-errors {{ .Values.maxmind.s3.path }} maxmind.tar.gz;
+            - aws s3 cp --endpoint=${AWS_ENDPOINT} --only-show-errors {{ .Values.maxmind.s3.path | default (include "storage.maxmindS3Path" (list $.Release.Namespace)) }} maxmind.tar.gz;
               yum install -y tar gzip;
               tar -xf ./maxmind.tar.gz;
               cp `find . -type f -name "*.mmdb"` /maxmind/maxmind.mmdb;

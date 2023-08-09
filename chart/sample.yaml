@@ -48,5 +48,5 @@ legacyIngress:
 maxmind:
   updateSchedule: "0 1 * * *"
   s3:
-    path: s3://path/to/db
+    # path: s3://path/to/db
     secretName: "yandex-appsdata-ro-storage-credentials"
