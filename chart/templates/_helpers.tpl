@@ -115,7 +115,7 @@ Create volumeMount name from audience and secret name
 {{- end }}
 
 {{/*
-Generate path to file in S3 `apps-data` bucket
+Generate path maxmind database file in S3 `apps-data` bucket
 */}}
 {{- define "storage.maxmindS3Path" -}}
 {{- $namespace := index . 0 -}}
